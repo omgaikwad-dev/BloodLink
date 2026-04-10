@@ -1,0 +1,14 @@
+﻿Analyzing BloodLink_Ai...                                       
+
+   info - The variable name 'inter11_secure' isn't a lowerCamelCase identifier - lib\screens\auth\login_screen.dart:46:16 - non_constant_identifier_names
+   info - The variable name 'inter_white' isn't a lowerCamelCase identifier - lib\screens\auth\login_screen.dart:51:16 - non_constant_identifier_names
+   info - The variable name 'inter_white24' isn't a lowerCamelCase identifier - lib\screens\auth\login_screen.dart:52:16 - non_constant_identifier_names
+   info - The variable name 'inter_bold_white' isn't a lowerCamelCase identifier - lib\screens\auth\login_screen.dart:53:16 - non_constant_identifier_names
+   info - The variable name 'inter14w_sub' isn't a lowerCamelCase identifier - lib\screens\auth\register_screen.dart:42:16 - non_constant_identifier_names
+   info - The variable name 'inter12_muted' isn't a lowerCamelCase identifier - lib\screens\auth\register_screen.dart:51:16 - non_constant_identifier_names
+   info - The variable name 'inter12_summary' isn't a lowerCamelCase identifier - lib\screens\auth\register_screen.dart:53:16 - non_constant_identifier_names
+   info - The variable name 'inter14w600_sum' isn't a lowerCamelCase identifier - lib\screens\auth\register_screen.dart:55:16 - non_constant_identifier_names
+  error - Undefined name 'context' - lib\screens\profile\medical_records_screen.dart:77:54 - undefined_identifier
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\profile\notification_preferences_screen.dart:50:7 - deprecated_member_use
+   info - 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre - lib\screens\profile\privacy_security_screen.dart:124:15 - deprecated_member_use
+

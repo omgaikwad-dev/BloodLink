@@ -1,0 +1,69 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: Check if user is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Any authenticated user can read user profiles (needed for matching)
+      allow read: if isAuth();
+      // Users can create their own profile
+      allow create: if isAuth() && request.auth.uid == userId;
+      // Users can update their own profile
+      allow update: if isAuth() && request.auth.uid == userId;
+      // Only admin can delete users
+      allow delete: if isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Blood Requests collection
+    match /requests/{requestId} {
+      // Any authenticated user can read requests
+      allow read: if isAuth();
+      // Any authenticated user can create requests
+      allow create: if isAuth();
+      // Any authenticated user can update requests (donors accept, hospitals update)
+      allow update: if isAuth();
+      // Only admin can delete requests
+      allow delete: if isAuth();
+    }
+
+    // Blood Inventory collection
+    match /bloodInventory/{inventoryId} {
+      // Any authenticated user can view inventory
+      allow read: if isAuth();
+      // Any authenticated user can create/update inventory
+      allow create: if isAuth();
+      allow update: if isAuth();
+      allow delete: if isAuth();
+    }
+
+    // Ambulances collection
+    match /ambulances/{ambulanceId} {
+      allow read: if isAuth();
+      allow write: if isAuth();
+      allow update: if isAuth();
+    }
+
+    // Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth();
+    }
+
+    // Chat collection
+    match /chats/{chatId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+
+      match /messages/{messageId} {
+        allow read: if isAuth();
+        allow create: if isAuth();
+      }
+    }
+  }
+}

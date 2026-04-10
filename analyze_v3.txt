@@ -1,0 +1,25 @@
+﻿Analyzing BloodLink_Ai...                                       
+
+  error - The getter 'white35' isn't defined for the type 'Colors' - lib\screens\auth\login_screen.dart:824:29 - undefined_getter
+  error - The getter 'white20' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:487:34 - undefined_getter
+  error - The getter 'white40' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:527:31 - undefined_getter
+  error - The getter 'white15' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:636:42 - undefined_getter
+  error - The getter 'white40' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:684:33 - undefined_getter
+  error - The getter 'white40' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:769:31 - undefined_getter
+  error - The getter 'white40' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:800:31 - undefined_getter
+  error - The getter 'white25' isn't defined for the type 'Colors' - lib\screens\auth\register_screen.dart:959:52 - undefined_getter
+
+flutter : 8 issues found. (ran 
+in 7.8s)
+At line:1 char:1
++ flutter analyze 2>&1 | 
+Out-File -FilePath 
+.\analyze_v3.txt -Encoding  ...
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (8 issues fo  
+  und. (ran in 7.8s):String)   
+  [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 

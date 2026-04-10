@@ -1,0 +1,11 @@
+﻿Found 4 connected devices:
+  motorola edge 60 fusion (mobile) ΓÇó ZD222XKT6D ΓÇó android-arm64  ΓÇó Android 16 (API 36)
+  Windows (desktop)                ΓÇó windows    ΓÇó windows-x64    ΓÇó Microsoft Windows [Version 10.0.26200.8117]
+  Chrome (web)                     ΓÇó chrome     ΓÇó web-javascript ΓÇó Google Chrome 146.0.7680.178
+  Edge (web)                       ΓÇó edge       ΓÇó web-javascript ΓÇó Microsoft Edge 146.0.3856.97
+
+Device emulator-5554 is offline.
+
+Run "flutter emulators" to list and start any available device emulators.
+
+If you expected another device to be detected, please run "flutter doctor" to diagnose potential issues. You may also try increasing the time to wait for connected devices with the "--device-timeout" flag. Visit https://flutter.dev/setup/ for troubleshooting tips.

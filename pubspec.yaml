@@ -1,0 +1,82 @@
+name: bloodlink_ai
+description: "BloodLink AI – Emergency Blood Network System"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.6.0
+  cloud_firestore: ^5.6.7
+  firebase_messaging: ^15.2.6
+
+  # Maps & Location (OpenStreetMap - free, no API key needed)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  geolocator: ^14.0.0
+  geocoding: ^4.0.0
+
+  # State Management
+  provider: ^6.1.4
+
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
+  flutter_animate: ^4.5.2
+  cached_network_image: ^3.4.1
+  fl_chart: ^1.0.0
+
+  # Utilities
+  intl: ^0.20.0
+  uuid: ^4.5.1
+  http: ^1.4.0
+  url_launcher: ^6.3.1
+  shared_preferences: ^2.5.3
+  permission_handler: ^11.4.0
+  flutter_local_notifications: ^19.2.1
+  google_sign_in: ^6.2.2
+  local_auth: ^3.0.1
+  app_settings: ^7.0.0
+  pdf: ^3.12.0
+  printing: ^5.14.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/lang/
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/bloodlink_modern_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/images/bloodlink_modern_icon.png"
+    background_color: "#0F0508"
+
+flutter_native_splash:
+  color: "#0F0508"
+  image: "assets/images/bloodlink_modern_icon.png"
+  android_12:
+    color: "#0F0508"
+    image: "assets/images/bloodlink_modern_icon.png"

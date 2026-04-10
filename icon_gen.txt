@@ -1,0 +1,33 @@
+﻿  ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+     FLUTTER LAUNCHER ICONS (v0.14.4)                               
+  ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  
+ΓÇó Creating default icons Android
+ΓÇó Overwriting the default Android launcher icon with a new icon
+ΓÇó Overwriting default iOS launcher icon with new icon
+Creating Icons for Web...
+flutter : 
+ΓÜá∩╕Å.\web\index.html this 
+file or folder is required to 
+generate web icons
+At line:1 char:1
++ flutter pub run 
+flutter_launcher_icons 2>&1 | 
+Out-File -FilePath .\ic ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (ΓÜá∩╕Å.\web  
+  \ind...erate web icons:Str   
+ ing) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+ΓÜá∩╕ÅFormatException: 
+Unexpected end of input (at 
+character 1)
+
+^
+
+
+Γ£ô Successfully generated launcher icons

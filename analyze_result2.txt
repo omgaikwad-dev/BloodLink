@@ -1,0 +1,21 @@
+﻿Analyzing BloodLink_Ai...                                       
+
+   info - Unnecessary use of multiple underscores - lib\screens\auth\login_screen.dart:252:28 - unnecessary_underscores
+   info - Unnecessary use of multiple underscores - lib\screens\auth\register_screen.dart:190:28 - unnecessary_underscores
+
+flutter : 2 issues found. 
+(ran in 4.8s)
+At line:1 char:1
++ flutter analyze 2>&1 | 
+Out-File -FilePath 
+analyze_result2.txt -Encodi 
+...
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+:     NotSpecified: (2 
+issues fo    und. (ran in 
+4.8s):String)     [], 
+RemoteException
+    + FullyQualifiedErrorId 
+:     NativeCommandError
+ 

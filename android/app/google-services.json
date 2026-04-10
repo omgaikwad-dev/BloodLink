@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "775881883324",
+    "firebase_url": "https://bloodlink-ai-a2724-default-rtdb.firebaseio.com",
+    "project_id": "bloodlink-ai-a2724",
+    "storage_bucket": "bloodlink-ai-a2724.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:775881883324:android:bce61a8232ef334ccddab9",
+        "android_client_info": {
+          "package_name": "com.example.bloodlink_ai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "775881883324-kg1vg70fh0mkansd1ljhub35eaakoqmv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bloodlink_ai",
+            "certificate_hash": "e7c97572429f8e244d8087d587e353171ec4aad3"
+          }
+        },
+        {
+          "client_id": "775881883324-mpttdkspdb4nv2i5l7g50rrn2qp69dka.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXPRpuWsEQyoLKu7Gsev8SNDPhQpT3PHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "775881883324-mpttdkspdb4nv2i5l7g50rrn2qp69dka.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

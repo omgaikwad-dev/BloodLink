@@ -1,0 +1,20 @@
+﻿Analyzing BloodLink_Ai...                                       
+
+   info - The local variable '_a' starts with an underscore - lib\screens\auth\login_screen.dart:280:28 - no_leading_underscores_for_local_identifiers
+   info - The local variable '_a' starts with an underscore - lib\screens\auth\login_screen.dart:340:42 - no_leading_underscores_for_local_identifiers
+   info - The local variable '_a' starts with an underscore - lib\screens\auth\register_screen.dart:250:28 - no_leading_underscores_for_local_identifiers
+
+flutter : 3 issues found. (ran 
+in 6.1s)
+At line:1 char:1
++ flutter analyze 2>&1 | 
+Out-File -FilePath 
+.\analyze_check.txt -Encodi ...
++ ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (3 issues fo  
+  und. (ran in 6.1s):String)   
+  [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
