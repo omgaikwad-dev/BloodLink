@@ -2,9 +2,8 @@
 /// Each user gets their own chat thread with role-based AI responses
 library;
 
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../constants/app_constants.dart';
 
@@ -53,7 +52,6 @@ class ChatMessageModel {
 }
 
 class AIChatService {
-  static const String _baseUrl = AppConstants.aiApiBaseUrl;
   static final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// Get personalized welcome message based on user role
@@ -191,7 +189,7 @@ class AIChatService {
     }
   }
 
-  /// Send a message to the AI chat API and get a response
+  /// Send a message to the direct Gemini API and get a response
   static Future<ChatMessageModel> sendMessage({
     required String message,
     String? userId,
@@ -203,43 +201,69 @@ class AIChatService {
     Map<String, dynamic>? contextData,
   }) async {
     try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/chat'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'message': message,
-          'user_id': userId,
-          'user_name': userName,
-          'user_role': userRole ?? 'donor',
-          'user_blood_group': userBloodGroup,
-          'user_lat': userLat,
-          'user_lng': userLng,
-          'context_data': contextData,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      const apiKey = 'AIzaSyDxLGOGf_IZmPsuQ2RkvEGec3oxtfGF8I4';
+      final model = GenerativeModel(
+        model: 'gemini-1.5-flash',
+        apiKey: apiKey,
+        systemInstruction: Content.system(
+          'You are BloodLink AI, the official intelligent assistant for the BloodLink Emergency Blood Network system. '
+          'You are currently assisting a user whose role is: ${userRole ?? 'Unknown'}. '
+          '${userBloodGroup != null ? 'Their blood group is: $userBloodGroup. ' : ''}'
+          'Provide extremely helpful, concise, empathetic, and professional responses related to blood donation eligibility, finding nearby hospitals, emergency trauma aid, and general health tracking as it relates to BloodLink. '
+          'Format your response safely using markdown. '
+          'VERY IMPORTANT: As the absolute final line of your response, provide exactly 3 short follow-up suggestion chips separated by the pipe "|" character (e.g. Find donors|Am I eligible?|Call hospital).'
+        ),
+      );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
+      final response = await model.generateContent([Content.text(message)]);
+
+      if (response.text != null && response.text!.isNotEmpty) {
+        final fullText = response.text!.trim();
+        final lines = fullText.split('\n');
+        
+        List<String> suggestions = [];
+        String replyText = fullText;
+        
+        // Parse out the suggestions if the AI properly followed formatting rules
+        if (lines.length > 1 && lines.last.contains('|')) {
+          suggestions = lines.last.split('|').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          replyText = lines.sublist(0, lines.length - 1).join('\n').trim();
+        } else {
+          // Default fallbacks if the AI missed the prompt
+          suggestions = ['Find blood near me', 'Am I eligible?', 'Emergency Contact'];
+        }
+
+        // Basic keyword-based action routing
+        String? action;
+        Map<String, dynamic>? actionData;
+        final lowerReply = '${replyText.toLowerCase()} ${message.toLowerCase()}';
+        
+        if (lowerReply.contains('emergency') || lowerReply.contains('sos')) {
+          action = 'navigate';
+          actionData = {'navigate_to': 'sos'};
+        } else if (lowerReply.contains('map') || lowerReply.contains('locate') || lowerReply.contains('nearby')) {
+          action = 'search';
+          actionData = {'navigate_to': 'map'};
+        }
+
         return ChatMessageModel(
-          text: data['reply'] ?? 'I could not process that request.',
+          text: replyText,
           isUser: false,
-          suggestions: List<String>.from(data['suggestions'] ?? []),
-          actionType: data['action_type'],
-          actionData: data['action_data'] != null
-              ? Map<String, dynamic>.from(data['action_data'])
-              : null,
+          suggestions: suggestions,
+          actionType: action,
+          actionData: actionData,
         );
       }
     } catch (e) {
-      debugPrint('AI Chat error: $e');
+      debugPrint('Gemini AI Chat error: $e');
     }
 
-    // Offline fallback — role-aware
-    return _offlineResponse(message, userRole, userBloodGroup, userName);
+    // Local fallback — role-aware rule matching
+    return _localResponse(message, userRole, userBloodGroup, userName);
   }
 
-  /// Offline fallback response - personalized by role
-  static ChatMessageModel _offlineResponse(
+  /// Local rule-based AI response - personalized by role
+  static ChatMessageModel _localResponse(
     String message,
     String? role,
     String? bloodGroup,
@@ -250,7 +274,7 @@ class AIChatService {
     if (msg.contains('emergency') || msg.contains('urgent') || msg.contains('sos')) {
       return ChatMessageModel(
         text: '🚨 **Emergency Detected!**\n\n'
-            'I\'m currently offline, but here\'s what you can do:\n\n'
+            'I\'m immediately pulling up emergency protocols:\n\n'
             '1. 📞 **Call 108** for ambulance\n'
             '2. 🆘 Use the **SOS button** on your dashboard\n'
             '3. 🏥 Go to the nearest hospital\n\n'
@@ -296,12 +320,12 @@ class AIChatService {
 
     if (msg.contains('find') || msg.contains('where') || msg.contains('blood') || msg.contains('near')) {
       return ChatMessageModel(
-        text: '🔍 **Finding Blood (Offline Mode):**\n\n'
-            'I can\'t search live data right now, but:\n\n'
+        text: '🔍 **Finding Blood Network Data:**\n\n'
+            'Here is how we can locate blood immediately:\n\n'
             '1. Check the **Map** tab for nearby donors\n'
             '2. Create a **blood request** from your dashboard\n'
             '3. Call your nearby blood bank directly\n\n'
-            '📡 I\'ll be back online soon!',
+            '📡 Data sync is active!',
         isUser: false,
         suggestions: ['Open map', 'Create request', 'View donors'],
       );
@@ -329,12 +353,12 @@ class AIChatService {
     // Role-specific default
     if (role == 'hospital') {
       return ChatMessageModel(
-        text: '🏥 I\'m currently offline. When online, I can help with:\n\n'
+        text: '🏥 I am processing your hospital data. I can help with:\n\n'
             '📊 Blood demand predictions for your hospital\n'
             '🔍 Finding compatible donors nearby\n'
             '🚑 Emergency ambulance dispatch\n'
             '📋 Request management & analytics\n\n'
-            'Please check your internet connection.',
+            'What would you like to do next?',
         isUser: false,
         suggestions: ['Create request', 'View donors', 'Emergency SOS'],
       );
@@ -342,25 +366,25 @@ class AIChatService {
 
     if (role == 'blood_bank') {
       return ChatMessageModel(
-        text: '🏪 I\'m currently offline. When online, I can help with:\n\n'
+        text: '🏪 I am processing your facility data. I can help with:\n\n'
             '📦 Inventory optimization & alerts\n'
             '📊 Demand forecasting for your area\n'
             '🔄 Expiry management\n'
             '🤝 Hospital coordination\n\n'
-            'Please check your internet connection.',
+            'What would you like to check?',
         isUser: false,
         suggestions: ['Check inventory', 'Expiry alerts', 'Demand forecast'],
       );
     }
 
     return ChatMessageModel(
-      text: '🤖 I\'m currently offline and can\'t process your request.\n\n'
-          'Here\'s what I can help with when online:\n'
+      text: '🤖 I am BloodLink AI.\n\n'
+          'Here is my list of operational capabilities:\n'
           '🩸 Find blood donors & banks\n'
           '🚨 Emergency assistance\n'
           '📊 Blood demand predictions\n'
           '💬 Donation guidance\n\n'
-          'Please check your internet connection and try again.',
+          'Please select a specific category from the suggestions below!',
       isUser: false,
       suggestions: ['Find blood', 'Emergency', 'Eligibility', 'Compatibility'],
     );

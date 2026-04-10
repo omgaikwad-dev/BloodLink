@@ -48,6 +48,8 @@ dependencies:
   app_settings: ^7.0.0
   pdf: ^3.12.0
   printing: ^5.14.3
+  heart_bpm: ^2.0.0+0
+  google_generative_ai: ^0.4.7
 
 dev_dependencies:
   flutter_test:

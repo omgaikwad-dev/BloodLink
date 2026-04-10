@@ -64,14 +64,23 @@ class RequestProvider extends ChangeNotifier {
 
       final requestId = await _firestoreService.createBloodRequest(request);
 
-      // Send notification
+      // Send Local notification for hospital's own record
       final channelId = urgency == 'SOS' ? 'sos_channel' : 'request_channel';
       await _notificationService.showNotification(
-        title: urgency == 'SOS'
-            ? '🆘 SOS EMERGENCY!'
-            : '🩸 New Blood Request',
-        body: '$hospitalName needs $units unit(s) of $bloodGroup blood ($urgency)',
+        title: urgency == 'SOS' ? '🆘 Request Broadcasted' : '🩸 Request Broadcasted',
+        body: 'Searching for $bloodGroup donors nearby.',
         channelId: channelId,
+      );
+
+      // Trigger Push Notification to all compatible donors subscribed to this blood group
+      final safeGroup = bloodGroup.replaceAll('+', '_pos').replaceAll('-', '_neg');
+      await _notificationService.sendTopicNotification(
+        topic: 'blood_$safeGroup',
+        title: urgency == 'SOS'
+            ? '🆘 URGENT: $bloodGroup Needed at $hospitalName!'
+            : '🩸 Alert: $bloodGroup Requested at $hospitalName',
+        body: 'Urgency: $urgency • $units unit(s) required. Tap to respond immediately and save a life!',
+        urgency: urgency,
       );
 
       // Trigger SMS Backup Alerts for critical emergencies

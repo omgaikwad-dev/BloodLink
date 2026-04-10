@@ -3,6 +3,9 @@ library;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -135,6 +138,58 @@ class NotificationService {
       body: message.notification?.body ?? '',
       channelId: channelId,
     );
+  }
+
+  /// Send push notification via FCM Legacy API
+  Future<void> sendTopicNotification({
+    required String topic,
+    required String title,
+    required String body,
+    String urgency = 'Normal',
+  }) async {
+    try {
+      // Note: for production, use FCM v1 API and handle via backend.
+      // This is using the Legacy HTTP API for direct client-to-client messaging in demo mode.
+      const String fcmServerKey = 'YOUR_FCM_SERVER_KEY_HERE';
+      
+      if (fcmServerKey == 'YOUR_FCM_SERVER_KEY_HERE') {
+        debugPrint('FCM sending skipped: Provide a valid server key in NotificationService.');
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('https://fcm.googleapis.com/fcm/send'),
+        headers: <String, String>{
+          'Content-Type': 'application/json',
+          'Authorization': 'key=$fcmServerKey',
+        },
+        body: jsonEncode(
+          <String, dynamic>{
+            'notification': <String, dynamic>{
+              'title': title,
+              'body': body,
+              'android_channel_id': urgency == 'SOS' ? 'sos_channel' : 'request_channel',
+              'sound': 'default',
+              'icon': '@mipmap/ic_launcher',
+            },
+            'priority': 'high',
+            'data': <String, dynamic>{
+              'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+              'urgency': urgency,
+            },
+            'to': '/topics/$topic',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        debugPrint('Topic notification sent successfully');
+      } else {
+        debugPrint('FCM Error: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('Failed to send topic notification: $e');
+    }
   }
 }
 

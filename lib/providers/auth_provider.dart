@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../core/services/firestore_service.dart';
@@ -21,6 +22,9 @@ class AuthProvider extends ChangeNotifier {
   bool _isSigningUp = false; // Guard to prevent race during signup
   bool _isInitialized = false; // True after first auth state check completes
 
+  StreamSubscription? _notificationSubscription;
+  final Set<String> _seenNotificationIds = {};
+
   User? get firebaseUser => _firebaseUser;
   UserModel? get userModel => _userModel;
   bool get isLoading => _isLoading;
@@ -39,11 +43,61 @@ class AuthProvider extends ChangeNotifier {
     if (user != null && !_isSigningUp) {
       // Only auto-load profile if we're not in the middle of signup
       await _loadUserProfile(user.uid);
+      _setupNotificationListeners();
     } else if (user == null) {
       _userModel = null;
+      _cancelNotificationListeners();
     }
     _isInitialized = true;
     notifyListeners();
+  }
+
+  void _setupNotificationListeners() {
+    _cancelNotificationListeners();
+    if (_userModel == null) return;
+
+    if (_userModel!.role == 'donor') {
+      _notificationSubscription = _firestoreService.streamPendingRequests().listen((requests) {
+        for (var req in requests) {
+          if (req.bloodGroup == _userModel!.bloodGroup && !_seenNotificationIds.contains(req.id)) {
+            _seenNotificationIds.add(req.id);
+            // Only notify if request is relatively new (prevent spam on initial load)
+            if (DateTime.now().difference(req.createdAt).inMinutes < 10) {
+              _notificationService.showNotification(
+                title: req.isSOS ? '🆘 URGENT: ${req.bloodGroup} Needed!' : '🩸 Alert: ${req.bloodGroup} Requested',
+                body: '${req.hospitalName} needs ${req.units} unit(s). Tap to respond and save a life!',
+                channelId: req.isSOS ? 'sos_channel' : 'request_channel',
+              );
+            }
+          }
+        }
+      });
+    } else if (_userModel!.role == 'hospital' || _userModel!.role == 'blood_bank') {
+      _notificationSubscription = _firestoreService.streamHospitalRequests(_userModel!.id).listen((requests) {
+        for (var req in requests) {
+          String statusKey = '${req.id}_${req.status}';
+          if (req.status == 'accepted' && !_seenNotificationIds.contains(statusKey)) {
+            _seenNotificationIds.add(statusKey);
+            
+            // Only notify for recent acceptances
+            final updateTime = req.updatedAt ?? req.createdAt;
+            if (DateTime.now().difference(updateTime).inMinutes < 10) {
+              _notificationService.showNotification(
+                title: '✅ Request Accepted!',
+                body: '${req.assignedDonorName ?? "A donor"} has accepted your ${req.bloodGroup} blood request!',
+                channelId: 'request_channel',
+              );
+            }
+          }
+        }
+      });
+    }
+  }
+
+  void _cancelNotificationListeners() {
+    _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+    _seenNotificationIds.clear();
   }
 
   /// Load user profile from Firestore
@@ -106,12 +160,14 @@ class AuthProvider extends ChangeNotifier {
         // Set user model BEFORE releasing the signup guard
         _userModel = user;
         _firebaseUser = cred.user;
+        _setupNotificationListeners();
 
         // Subscribe to role-based topics (non-critical)
         try {
           await _notificationService.subscribeToTopic(role);
           if (bloodGroup.isNotEmpty) {
-            await _notificationService.subscribeToTopic('blood_$bloodGroup');
+            String safeGroup = bloodGroup.replaceAll('+', '_pos').replaceAll('-', '_neg');
+            await _notificationService.subscribeToTopic('blood_$safeGroup');
           }
         } catch (e) {
           debugPrint('Topic subscription error: $e');
@@ -172,6 +228,7 @@ class AuthProvider extends ChangeNotifier {
         }
 
         _setLoading(false);
+        _setupNotificationListeners();
         return true;
       }
     } on FirebaseAuthException catch (e) {
@@ -239,6 +296,7 @@ class AuthProvider extends ChangeNotifier {
 
         _isSigningUp = false;
         _setLoading(false);
+        _setupNotificationListeners();
         notifyListeners();
         return true;
       }
@@ -310,6 +368,7 @@ class AuthProvider extends ChangeNotifier {
     await _auth.signOut();
     _userModel = null;
     _firebaseUser = null;
+    _cancelNotificationListeners();
     notifyListeners();
   }
 
