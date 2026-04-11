@@ -24,6 +24,8 @@ class AuthProvider extends ChangeNotifier {
 
   StreamSubscription? _notificationSubscription;
   final Set<String> _seenNotificationIds = {};
+  bool _isFirstDonorEmission = true;
+  bool _isFirstHospitalEmission = true;
 
   User? get firebaseUser => _firebaseUser;
   UserModel? get userModel => _userModel;
@@ -56,35 +58,59 @@ class AuthProvider extends ChangeNotifier {
     _cancelNotificationListeners();
     if (_userModel == null) return;
 
+    _isFirstDonorEmission = true;
+    _isFirstHospitalEmission = true;
+
     if (_userModel!.role == 'donor') {
       _notificationSubscription = _firestoreService.streamPendingRequests().listen((requests) {
+        if (_isFirstDonorEmission) {
+          // Pre-seed: mark all existing requests as seen so we don't spam on app launch
+          for (var req in requests) {
+            _seenNotificationIds.add(req.id);
+          }
+          _isFirstDonorEmission = false;
+          return;
+        }
+
         for (var req in requests) {
           if (req.bloodGroup == _userModel!.bloodGroup && !_seenNotificationIds.contains(req.id)) {
             _seenNotificationIds.add(req.id);
-            // Only notify if request is relatively new (prevent spam on initial load)
-            if (DateTime.now().difference(req.createdAt).inMinutes < 10) {
-              _notificationService.showNotification(
-                title: req.isSOS ? '🆘 URGENT: ${req.bloodGroup} Needed!' : '🩸 Alert: ${req.bloodGroup} Requested',
-                body: '${req.hospitalName} needs ${req.units} unit(s). Tap to respond and save a life!',
-                channelId: req.isSOS ? 'sos_channel' : 'request_channel',
-              );
-            }
+            _notificationService.showNotification(
+              title: req.isSOS ? '🆘 URGENT: ${req.bloodGroup} Needed!' : '🩸 Alert: ${req.bloodGroup} Requested',
+              body: '${req.hospitalName} needs ${req.units} unit(s). Tap to respond and save a life!',
+              channelId: req.isSOS ? 'sos_channel' : 'request_channel',
+            );
           }
         }
       });
     } else if (_userModel!.role == 'hospital' || _userModel!.role == 'blood_bank') {
       _notificationSubscription = _firestoreService.streamHospitalRequests(_userModel!.id).listen((requests) {
+        if (_isFirstHospitalEmission) {
+          // Pre-seed: mark all existing statuses as seen so we don't spam on app launch
+          for (var req in requests) {
+            _seenNotificationIds.add('${req.id}_${req.status}');
+          }
+          _isFirstHospitalEmission = false;
+          return;
+        }
+
         for (var req in requests) {
           String statusKey = '${req.id}_${req.status}';
-          if (req.status == 'accepted' && !_seenNotificationIds.contains(statusKey)) {
+          // Notify on BOTH 'accepted' and 'in_transit' (ambulance dispatched)
+          if ((req.status == 'accepted' || req.status == 'in_transit') &&
+              !_seenNotificationIds.contains(statusKey)) {
             _seenNotificationIds.add(statusKey);
-            
-            // Only notify for recent acceptances
-            final updateTime = req.updatedAt ?? req.createdAt;
-            if (DateTime.now().difference(updateTime).inMinutes < 10) {
+
+            if (req.status == 'accepted') {
               _notificationService.showNotification(
-                title: '✅ Request Accepted!',
-                body: '${req.assignedDonorName ?? "A donor"} has accepted your ${req.bloodGroup} blood request!',
+                title: '✅ Donor Found!',
+                body: '${req.assignedDonorName ?? "A donor"} accepted your ${req.bloodGroup} request! Dispatching ambulance...',
+                channelId: 'request_channel',
+              );
+            } else if (req.status == 'in_transit') {
+              _notificationService.showNotification(
+                title: '🚑 Ambulance Dispatched!',
+                body: 'Ambulance is en route for ${req.bloodGroup} request. Track live in the Ambulance tab.',
                 channelId: 'request_channel',
               );
             }

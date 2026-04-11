@@ -1,5 +1,5 @@
 /// Hospital Dashboard - manage requests, view donors, SOS emergency
-/// Demo data removed, real-time Firestore data only
+/// Includes dedicated Ambulance Command Center with real-time tracking
 library;
 
 import 'package:flutter/material.dart';
@@ -13,11 +13,13 @@ import '../../core/widgets/blood_group_selector.dart';
 import '../../core/services/firestore_service.dart';
 import '../../models/blood_request_model.dart';
 import '../../models/user_model.dart';
+import '../../models/ambulance_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/request_provider.dart';
 import '../ai/ai_chat_screen.dart';
 import '../ai/demand_prediction_screen.dart';
 import '../ai/emergency_classifier_screen.dart';
+import '../ambulance/ambulance_tracking_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class HospitalDashboard extends StatefulWidget {
@@ -35,7 +37,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -100,9 +102,11 @@ class _HospitalDashboardState extends State<HospitalDashboard>
           indicatorWeight: 3,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textMuted,
-          labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+          labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 11),
+          isScrollable: false,
           tabs: const [
             Tab(icon: Icon(Icons.dashboard_rounded, size: 18), text: 'Overview'),
+            Tab(icon: Icon(Icons.local_shipping_rounded, size: 18), text: 'Ambulance'),
             Tab(icon: Icon(Icons.people_rounded, size: 18), text: 'Network'),
             Tab(icon: Icon(Icons.assignment_rounded, size: 18), text: 'Requests'),
           ],
@@ -112,6 +116,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         controller: _tabController,
         children: [
           _buildOverviewTab(),
+          _buildAmbulanceTab(),
           _buildDonorsTab(),
           _buildRequestsTab(),
         ],
@@ -193,8 +198,9 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   }
 
   Widget _buildQuickStats() {
+    final uid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
     return StreamBuilder<List<BloodRequestModel>>(
-      stream: _fs.streamAllRequests(),
+      stream: _fs.streamHospitalRequests(uid),
       builder: (context, snapshot) {
         final requests = snapshot.data ?? [];
         final pending = requests.where((r) => r.status == 'pending').length;
@@ -280,10 +286,11 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   }
 
   Widget _buildRecentRequests() {
+    final uid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
     return StreamBuilder<List<BloodRequestModel>>(
-      stream: _fs.streamActiveRequests(),
+      stream: _fs.streamHospitalRequests(uid),
       builder: (context, snap) {
-        final reqs = (snap.data ?? []).take(5).toList();
+        final reqs = (snap.data ?? []).where((r) => r.isActive).take(5).toList();
         if (reqs.isEmpty) {
           return GlassCard(
             padding: const EdgeInsets.all(28),
@@ -346,6 +353,420 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         ])),
         UrgencyBadge(urgency: req.urgency, fontSize: 10),
       ]),
+    );
+  }
+
+  // ===================== AMBULANCE TAB =====================
+  Widget _buildAmbulanceTab() {
+    final uid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Ambulance Command Center Header
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  const Color(0xFF0EA5E9).withValues(alpha: 0.2),
+                  const Color(0xFF7C3AED).withValues(alpha: 0.08),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Icon(Icons.local_shipping_rounded, color: AppColors.info, size: 30)
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .scale(begin: const Offset(1, 1), end: const Offset(1.1, 1.1), duration: 1500.ms),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Ambulance Command', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                      const SizedBox(height: 4),
+                      Text('Real-time dispatch & tracking center', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(width: 7, height: 7, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.success))
+                          .animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 800.ms),
+                      const SizedBox(width: 5),
+                      Text('LIVE', style: GoogleFonts.inter(fontSize: 10, color: AppColors.success, fontWeight: FontWeight.w800)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ).animate().fade(duration: 400.ms).slideY(begin: -0.1, end: 0),
+          const SizedBox(height: 16),
+
+          // Ambulance Fleet Status
+          _buildAmbulanceFleetStatus().animate().fade(delay: 100.ms, duration: 400.ms).slideY(begin: 0.1, end: 0),
+          const SizedBox(height: 20),
+
+          // Active Dispatches (requests with ambulance assigned)
+          Text('🚑 Active Dispatches', style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary))
+              .animate().fade(delay: 200.ms).slideX(),
+          const SizedBox(height: 12),
+          _buildActiveDispatches(uid).animate().fade(delay: 250.ms),
+          const SizedBox(height: 20),
+
+          // Accepted Requests Waiting for Ambulance
+          Text('🩸 Donor Accepted — Ready for Dispatch', style: GoogleFonts.outfit(fontSize: 17, fontWeight: FontWeight.w700, color: AppColors.textPrimary))
+              .animate().fade(delay: 300.ms).slideX(),
+          const SizedBox(height: 12),
+          _buildAcceptedRequests(uid).animate().fade(delay: 350.ms),
+          const SizedBox(height: 80),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAmbulanceFleetStatus() {
+    return StreamBuilder<List<AmbulanceModel>>(
+      stream: _fs.streamAvailableAmbulances(),
+      builder: (context, snap) {
+        final available = snap.data?.length ?? 0;
+        return Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppColors.success.withValues(alpha: 0.12), AppColors.success.withValues(alpha: 0.04)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.25)),
+                ),
+                child: Column(
+                  children: [
+                    const Icon(Icons.local_shipping_rounded, color: AppColors.success, size: 28),
+                    const SizedBox(height: 8),
+                    Text('$available', style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.success)),
+                    Text('Available', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StreamBuilder<List<BloodRequestModel>>(
+                stream: _fs.streamHospitalRequests(context.read<AuthProvider>().firebaseUser?.uid ?? ''),
+                builder: (context, reqSnap) {
+                  final dispatched = (reqSnap.data ?? []).where((r) => r.assignedAmbulanceId != null && r.isActive).length;
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.warning.withValues(alpha: 0.12), AppColors.warning.withValues(alpha: 0.04)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.speed_rounded, color: AppColors.warning, size: 28),
+                        const SizedBox(height: 8),
+                        Text('$dispatched', style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.warning)),
+                        Text('Dispatched', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StreamBuilder<List<BloodRequestModel>>(
+                stream: _fs.streamHospitalRequests(context.read<AuthProvider>().firebaseUser?.uid ?? ''),
+                builder: (context, reqSnap) {
+                  final accepted = (reqSnap.data ?? []).where((r) => r.status == 'accepted' && r.assignedDonorId != null).length;
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppColors.info.withValues(alpha: 0.12), AppColors.info.withValues(alpha: 0.04)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
+                    ),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.person_pin_circle_rounded, color: AppColors.info, size: 28),
+                        const SizedBox(height: 8),
+                        Text('$accepted', style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.info)),
+                        Text('Donors Ready', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildActiveDispatches(String hospitalId) {
+    return StreamBuilder<List<BloodRequestModel>>(
+      stream: _fs.streamHospitalRequests(hospitalId),
+      builder: (context, snap) {
+        final dispatched = (snap.data ?? []).where((r) => r.assignedAmbulanceId != null && r.isActive).toList();
+
+        if (dispatched.isEmpty) {
+          return GlassCard(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: Column(children: [
+                Icon(Icons.local_shipping_outlined, color: AppColors.textMuted, size: 40),
+                const SizedBox(height: 10),
+                Text('No active ambulance dispatches', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                const SizedBox(height: 6),
+                Text('Ambulances will appear here when a donor accepts', style: TextStyle(color: AppColors.textMuted, fontSize: 12), textAlign: TextAlign.center),
+              ]),
+            ),
+          );
+        }
+
+        return Column(
+          children: dispatched.map((req) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _ambulanceDispatchCard(req),
+          )).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _ambulanceDispatchCard(BloodRequestModel req) {
+    return GlassCard(
+      isHighlighted: req.isSOS,
+      borderColor: AppColors.info.withValues(alpha: 0.4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Container(
+                width: 50, height: 50,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF0EA5E9), Color(0xFF38BDF8)]),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(color: AppColors.info.withValues(alpha: 0.3), blurRadius: 8)],
+                ),
+                child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(req.bloodGroup, style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(req.hospitalName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8, height: 8,
+                          decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.info),
+                        ).animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 600.ms),
+                        const SizedBox(width: 6),
+                        Text('IN TRANSIT', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.info)),
+                        const SizedBox(width: 8),
+                        Text('${req.units} unit(s)', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              UrgencyBadge(urgency: req.urgency, fontSize: 10),
+            ],
+          ),
+
+          // Donor info
+          if (req.assignedDonorName != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.success.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_rounded, color: AppColors.success, size: 18),
+                  const SizedBox(width: 8),
+                  Text('Donor: ${req.assignedDonorName}', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.success)),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('CONFIRMED', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.success)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 14),
+
+          // Track button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AmbulanceTrackingScreen(
+                requestId: req.id,
+                ambulanceId: req.assignedAmbulanceId!,
+                destinationLat: req.latitude,
+                destinationLng: req.longitude,
+                hospitalName: req.hospitalName,
+              ))),
+              icon: const Icon(Icons.my_location_rounded, size: 18, color: Colors.white),
+              label: Text('Track Ambulance & Donor Live', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.info,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 2,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Action buttons
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => context.read<RequestProvider>().updateStatus(req.id, AppConstants.statusCompleted),
+                  icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                  label: const Text('Complete', style: TextStyle(fontSize: 12, color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => context.read<RequestProvider>().updateStatus(req.id, AppConstants.statusCancelled),
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  label: const Text('Cancel', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.error,
+                      side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAcceptedRequests(String hospitalId) {
+    return StreamBuilder<List<BloodRequestModel>>(
+      stream: _fs.streamHospitalRequests(hospitalId),
+      builder: (context, snap) {
+        final accepted = (snap.data ?? []).where((r) =>
+            r.status == 'accepted' && r.assignedDonorId != null && r.assignedAmbulanceId == null).toList();
+
+        if (accepted.isEmpty) {
+          return GlassCard(
+            padding: const EdgeInsets.all(20),
+            child: Center(child: Text('No accepted requests awaiting dispatch', style: TextStyle(color: AppColors.textMuted, fontSize: 13))),
+          );
+        }
+
+        return Column(
+          children: accepted.map((req) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GlassCard(
+                borderColor: AppColors.success.withValues(alpha: 0.3),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 44, height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(child: Text(req.bloodGroup, style: GoogleFonts.outfit(color: AppColors.primary, fontSize: 15, fontWeight: FontWeight.w800))),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(req.hospitalName, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary), overflow: TextOverflow.ellipsis),
+                            Text('Donor: ${req.assignedDonorName ?? "Unknown"}', style: GoogleFonts.inter(fontSize: 12, color: AppColors.success, fontWeight: FontWeight.w500)),
+                          ],
+                        )),
+                        UrgencyBadge(urgency: req.urgency, fontSize: 10),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text('Donor accepted. Waiting for ambulance auto-dispatch...', style: GoogleFonts.inter(fontSize: 12, color: AppColors.warning))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 
@@ -525,8 +946,9 @@ class _HospitalDashboardState extends State<HospitalDashboard>
 
   // ===================== REQUESTS TAB =====================
   Widget _buildRequestsTab() {
+    final uid = context.read<AuthProvider>().firebaseUser?.uid ?? '';
     return StreamBuilder<List<BloodRequestModel>>(
-      stream: _fs.streamAllRequests(),
+      stream: _fs.streamHospitalRequests(uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: AppColors.primary));
@@ -561,12 +983,9 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   }
 
   Widget _fullRequestCard(BloodRequestModel req) {
-    final auth = context.read<AuthProvider>();
-    final isOwn = req.hospitalId == auth.firebaseUser?.uid;
-
     return GlassCard(
       isHighlighted: req.isSOS,
-      borderColor: req.isSOS ? AppColors.error.withValues(alpha: 0.4) : isOwn ? AppColors.primary.withValues(alpha: 0.3) : null,
+      borderColor: req.isSOS ? AppColors.error.withValues(alpha: 0.4) : AppColors.primary.withValues(alpha: 0.3),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Container(
@@ -581,16 +1000,9 @@ class _HospitalDashboardState extends State<HospitalDashboard>
           ),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Expanded(child: Text(req.hospitalName,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                  overflow: TextOverflow.ellipsis)),
-              if (isOwn) Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
-                child: const Text('YOUR', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: AppColors.primary)),
-              ),
-            ]),
+            Text(req.hospitalName,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
             Row(children: [
               Text('${req.units} unit(s)', style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
@@ -643,22 +1055,44 @@ class _HospitalDashboardState extends State<HospitalDashboard>
             ]),
           ),
         ],
-        if (isOwn && req.isActive) ...[
+        if (req.isActive) ...[
           const SizedBox(height: 12),
+          if (req.assignedAmbulanceId != null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AmbulanceTrackingScreen(
+                  requestId: req.id,
+                  ambulanceId: req.assignedAmbulanceId!,
+                  destinationLat: req.latitude,
+                  destinationLng: req.longitude,
+                  hospitalName: req.hospitalName,
+                ))),
+                icon: const Icon(Icons.my_location_rounded, size: 16, color: Colors.white),
+                label: const Text('Track Ambulance & Donor', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.info,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Row(children: [
-            if (req.status == 'accepted')
+            if (req.status == 'accepted' || req.status == 'in_transit')
               Expanded(child: ElevatedButton.icon(
                 onPressed: () => context.read<RequestProvider>().updateStatus(req.id, AppConstants.statusCompleted),
-                icon: const Icon(Icons.check_rounded, size: 16),
-                label: const Text('Complete', style: TextStyle(fontSize: 12)),
+                icon: const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                label: const Text('Complete', style: TextStyle(fontSize: 12, color: Colors.white)),
                 style: ElevatedButton.styleFrom(backgroundColor: AppColors.success, padding: const EdgeInsets.symmetric(vertical: 8)),
               )),
-            if (req.status == 'accepted') const SizedBox(width: 8),
+            if (req.status == 'accepted' || req.status == 'in_transit') const SizedBox(width: 8),
             Expanded(child: OutlinedButton.icon(
               onPressed: () => context.read<RequestProvider>().updateStatus(req.id, AppConstants.statusCancelled),
               icon: const Icon(Icons.close_rounded, size: 16),
               label: const Text('Cancel', style: TextStyle(fontSize: 12)),
-              style: OutlinedButton.styleFrom(foregroundColor: AppColors.textSecondary, side: const BorderSide(color: AppColors.border), padding: const EdgeInsets.symmetric(vertical: 8)),
+              style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)), padding: const EdgeInsets.symmetric(vertical: 8)),
             )),
           ]),
         ],
