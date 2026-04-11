@@ -63,6 +63,22 @@ class FirestoreService {
         .map((snap) => snap.docs.map((d) => UserModel.fromFirestore(d)).toList());
   }
 
+  /// Get all donors (one-shot, for smart routing)
+  Future<List<UserModel>> getAllDonors() async {
+    final snap = await _db.collection(AppConstants.usersCollection)
+        .where('role', isEqualTo: 'donor')
+        .get();
+    return snap.docs.map((d) => UserModel.fromFirestore(d)).toList();
+  }
+
+  /// Stream a single request by ID (for real-time status monitoring)
+  Stream<BloodRequestModel?> streamRequestById(String requestId) {
+    return _db.collection(AppConstants.requestsCollection)
+        .doc(requestId)
+        .snapshots()
+        .map((doc) => doc.exists ? BloodRequestModel.fromFirestore(doc) : null);
+  }
+
   /// Get network users (donors and blood banks) for Hospital dashboard
   Stream<List<UserModel>> streamNetworkUsers() {
     return _db.collection(AppConstants.usersCollection)
@@ -204,6 +220,18 @@ class FirestoreService {
     await _db.collection(AppConstants.requestsCollection)
         .doc(requestId)
         .update(update);
+  }
+
+  /// Update request target donor (for iterative routing)
+  Future<void> updateRequestTargetDonor(String requestId, String? donorId, String? donorName, double? distance) async {
+    await _db.collection(AppConstants.requestsCollection)
+        .doc(requestId)
+        .update({
+          'currentTargetDonorId': donorId,
+          'currentTargetDonorName': donorName,
+          'currentTargetDistanceKm': distance,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
   }
 
   /// Assign donor to request

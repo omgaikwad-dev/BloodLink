@@ -62,7 +62,7 @@ class SmartAmbulanceService {
 
       if (ambulances.isEmpty) {
         // Fallback: the system lacks real ambulances, generate dynamic AI dispatcher vehicle
-        final dist = LocationUtils.calculateDistance(hospitalLat + 0.01, hospitalLng + 0.01, requestLat, requestLng);
+        final dist = LocationUtils.calculateDistance(hospitalLat, hospitalLng, requestLat, requestLng);
         final eta = ((dist / 40.0) * 60).ceil().clamp(1, 999);
         final virtualAmbulanceId = 'amb_ai_${DateTime.now().millisecondsSinceEpoch}';
 
@@ -71,7 +71,7 @@ class SmartAmbulanceService {
            'number_plate': 'AI-MOCK-${DateTime.now().second}',
            'driver_name': 'Auto Dispatch (AI Unit)',
            'phone': '108',
-           'location': { 'lat': hospitalLat + 0.01, 'lng': hospitalLng + 0.01 },
+           'location': { 'lat': hospitalLat, 'lng': hospitalLng },
            'available': false, // Just assigned
            'vehicle_type': 'ALS Trauma Unit',
            'last_maintenance': Timestamp.now(),
@@ -142,30 +142,20 @@ class SmartAmbulanceService {
     double hospitalLng,
     String urgency,
   ) {
-    AmbulanceModel? best;
-    double bestDist = double.infinity;
+    AmbulanceModel? best = ambulances.first;
 
-    for (final amb in ambulances) {
-      final dist = LocationUtils.calculateDistance(
-        amb.latitude, amb.longitude, requestLat, requestLng,
-      );
-      if (dist < bestDist) {
-        bestDist = dist;
-        best = amb;
-      }
-    }
-
-    final eta = calculateETA(best!.latitude, best.longitude, requestLat, requestLng, urgency);
-    final totalDist = bestDist + LocationUtils.calculateDistance(
-      requestLat, requestLng, hospitalLat, hospitalLng,
+    // Calculate distance and ETA exclusively between Hospital and Donor per request config
+    final hospitalToDonorDist = LocationUtils.calculateDistance(
+      hospitalLat, hospitalLng, requestLat, requestLng,
     );
+    final hospitalToDonorETA = calculateETA(hospitalLat, hospitalLng, requestLat, requestLng, urgency);
 
     return AmbulanceAssignment(
       ambulanceId: best.id,
-      distanceKm: double.parse(bestDist.toStringAsFixed(2)),
-      etaMinutes: eta,
-      routeScore: double.parse((100 - bestDist * 3).clamp(0, 100).toStringAsFixed(2)),
-      reasoning: 'Nearest ambulance: ${bestDist.toStringAsFixed(1)}km | ETA: ${eta}min | Total route: ${totalDist.toStringAsFixed(1)}km',
+      distanceKm: double.parse(hospitalToDonorDist.toStringAsFixed(2)),
+      etaMinutes: hospitalToDonorETA,
+      routeScore: double.parse((100 - hospitalToDonorDist * 3).clamp(0, 100).toStringAsFixed(2)),
+      reasoning: 'Direct hospital dispatch: ${hospitalToDonorDist.toStringAsFixed(1)}km | ETA: ${hospitalToDonorETA}min',
     );
   }
 

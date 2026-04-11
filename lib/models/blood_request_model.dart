@@ -14,6 +14,9 @@ class BloodRequestModel {
   final String? assignedDonorId;
   final String? assignedDonorName;
   final String? assignedAmbulanceId;
+  final String? currentTargetDonorId;
+  final String? currentTargetDonorName;
+  final double? currentTargetDistanceKm;
   final double latitude;
   final double longitude;
   final String? notes;
@@ -34,8 +37,11 @@ class BloodRequestModel {
     this.assignedDonorId,
     this.assignedDonorName,
     this.assignedAmbulanceId,
-    this.latitude = 0.0,
-    this.longitude = 0.0,
+    this.currentTargetDonorId,
+    this.currentTargetDonorName,
+    this.currentTargetDistanceKm,
+    this.latitude = 18.5196,
+    this.longitude = 73.8553,
     this.notes,
     DateTime? createdAt,
     this.updatedAt,
@@ -67,8 +73,11 @@ class BloodRequestModel {
       assignedDonorId: data['assignedDonorId'],
       assignedDonorName: data['assignedDonorName'],
       assignedAmbulanceId: data['assignedAmbulanceId'],
-      latitude: (location?['lat'] as num?)?.toDouble() ?? 0.0,
-      longitude: (location?['lng'] as num?)?.toDouble() ?? 0.0,
+      currentTargetDonorId: data['currentTargetDonorId'],
+      currentTargetDonorName: data['currentTargetDonorName'],
+      currentTargetDistanceKm: (data['currentTargetDistanceKm'] as num?)?.toDouble(),
+      latitude: ((location?['lat'] as num?)?.toDouble() ?? 18.5196) == 0.0 ? 18.5196 : ((location?['lat'] as num?)?.toDouble() ?? 18.5196),
+      longitude: ((location?['lng'] as num?)?.toDouble() ?? 73.8553) == 0.0 ? 73.8553 : ((location?['lng'] as num?)?.toDouble() ?? 73.8553),
       notes: data['notes'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
@@ -90,6 +99,9 @@ class BloodRequestModel {
       'assignedDonorId': assignedDonorId,
       'assignedDonorName': assignedDonorName,
       'assignedAmbulanceId': assignedAmbulanceId,
+      'currentTargetDonorId': currentTargetDonorId,
+      'currentTargetDonorName': currentTargetDonorName,
+      'currentTargetDistanceKm': currentTargetDistanceKm,
       'location': {
         'lat': latitude,
         'lng': longitude,
@@ -109,6 +121,9 @@ class BloodRequestModel {
     String? assignedDonorId,
     String? assignedDonorName,
     String? assignedAmbulanceId,
+    String? currentTargetDonorId,
+    String? currentTargetDonorName,
+    double? currentTargetDistanceKm,
     DateTime? updatedAt,
     DateTime? completedAt,
     List<String>? notifiedDonorIds,
@@ -125,6 +140,9 @@ class BloodRequestModel {
       assignedDonorId: assignedDonorId ?? this.assignedDonorId,
       assignedDonorName: assignedDonorName ?? this.assignedDonorName,
       assignedAmbulanceId: assignedAmbulanceId ?? this.assignedAmbulanceId,
+      currentTargetDonorId: currentTargetDonorId ?? this.currentTargetDonorId,
+      currentTargetDonorName: currentTargetDonorName ?? this.currentTargetDonorName,
+      currentTargetDistanceKm: currentTargetDistanceKm ?? this.currentTargetDistanceKm,
       latitude: latitude,
       longitude: longitude,
       notes: notes,

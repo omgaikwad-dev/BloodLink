@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/glass_card.dart';
 import '../../core/services/ambulance_service.dart';
 import '../../core/utils/location_utils.dart';
+import '../../core/services/firestore_service.dart';
 
 class AmbulanceTrackingScreen extends StatefulWidget {
   final String requestId;
@@ -18,6 +19,7 @@ class AmbulanceTrackingScreen extends StatefulWidget {
   final double destinationLat;
   final double destinationLng;
   final String hospitalName;
+  final String? donorId;
 
   const AmbulanceTrackingScreen({
     super.key,
@@ -26,6 +28,7 @@ class AmbulanceTrackingScreen extends StatefulWidget {
     required this.destinationLat,
     required this.destinationLng,
     required this.hospitalName,
+    this.donorId,
   });
 
   @override
@@ -37,6 +40,7 @@ class _AmbulanceTrackingScreenState extends State<AmbulanceTrackingScreen> {
   final List<Marker> _markers = [];
   final List<Polyline> _polylines = [];
   StreamSubscription? _ambulanceSub;
+  StreamSubscription? _donorSub;
 
   double _distanceKm = 0;
   int _etaMinutes = 0;
@@ -53,6 +57,7 @@ class _AmbulanceTrackingScreenState extends State<AmbulanceTrackingScreen> {
   @override
   void dispose() {
     _ambulanceSub?.cancel();
+    _donorSub?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -495,6 +500,50 @@ class _AmbulanceTrackingScreenState extends State<AmbulanceTrackingScreen> {
         }
       }
     });
+
+    if (widget.donorId != null) {
+      _donorSub = FirestoreService().streamUser(widget.donorId!).listen((donor) {
+        if (donor != null && donor.latitude != 0) {
+          _markers.removeWhere((m) => m.key == const ValueKey('donor'));
+          _markers.add(Marker(
+            key: const ValueKey('donor'),
+            point: LatLng(donor.latitude, donor.longitude),
+            width: 80,
+            height: 50,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                    boxShadow: [
+                      BoxShadow(color: Colors.green.withValues(alpha: 0.5), blurRadius: 8),
+                    ],
+                  ),
+                  child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.bgCard.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    donor.name.isNotEmpty ? donor.name : 'Donor',
+                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ));
+          if (mounted) setState(() {});
+        }
+      });
+    }
 
     setState(() {});
   }

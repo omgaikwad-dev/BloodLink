@@ -195,6 +195,10 @@ class AuthProvider extends ChangeNotifier {
             String safeGroup = bloodGroup.replaceAll('+', '_pos').replaceAll('-', '_neg');
             await _notificationService.subscribeToTopic('blood_$safeGroup');
           }
+          // Subscribe to personal donor topic for smart routing targeted notifications
+          if (role == 'donor') {
+            await _notificationService.subscribeToTopic('donor_${cred.user!.uid}');
+          }
         } catch (e) {
           debugPrint('Topic subscription error: $e');
         }
@@ -248,6 +252,10 @@ class AuthProvider extends ChangeNotifier {
           final fcmToken = await _notificationService.getToken();
           if (fcmToken != null) {
             await _firestoreService.updateFcmToken(cred.user!.uid, fcmToken);
+          }
+          // Re-subscribe to personal topic for smart routing
+          if (_userModel?.role == 'donor') {
+            await _notificationService.subscribeToTopic('donor_${cred.user!.uid}');
           }
         } catch (e) {
           debugPrint('FCM update error: $e');

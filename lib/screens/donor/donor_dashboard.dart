@@ -14,10 +14,10 @@ import '../../core/utils/location_utils.dart';
 import '../../models/blood_request_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/request_provider.dart';
-import '../ambulance/ambulance_tracking_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import 'package:geolocator/geolocator.dart';
 
 class DonorDashboard extends StatefulWidget {
   const DonorDashboard({super.key});
@@ -30,10 +30,12 @@ class _DonorDashboardState extends State<DonorDashboard> {
   final FirestoreService _fs = FirestoreService();
   int _currentBpm = 72;
   Timer? _bpmTimer;
+  Position? _livePosition;
 
   @override
   void initState() {
     super.initState();
+    _initLocation();
     // Simulate AI Sensor tracking real-time heart rate via AI Prediction Mock
     _bpmTimer = Timer.periodic(const Duration(seconds: 2), (t) {
       if (mounted) {
@@ -42,6 +44,38 @@ class _DonorDashboardState extends State<DonorDashboard> {
         });
       }
     });
+  }
+
+  Future<void> _initLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return;
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+      if (permission == LocationPermission.deniedForever) return;
+      
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (mounted) {
+        setState(() => _livePosition = position);
+        if (context.mounted) {
+          context.read<AuthProvider>().updateLocation(position.latitude, position.longitude);
+        }
+      }
+      
+      Geolocator.getPositionStream().listen((Position position) {
+        if (mounted) {
+          setState(() => _livePosition = position);
+          if (context.mounted) {
+            context.read<AuthProvider>().updateLocation(position.latitude, position.longitude);
+          }
+        }
+      });
+    } catch (e) {
+      debugPrint("Error fetching location: $e");
+    }
   }
 
   @override
@@ -441,10 +475,19 @@ class _DonorDashboardState extends State<DonorDashboard> {
           if (user == null || r.rejectedDonorIds.contains(user.id)) {
             return false;
           }
-          // STRICT MATCHING: Only show requests that match donor's exact blood group
+          // Show requests where donor is the AI target OR blood group matches
+          if (r.currentTargetDonorId == user.id) return true;
           if (r.bloodGroup != user.bloodGroup) return false;
           return true;
         }).toList();
+
+        // Sort: AI-targeted requests appear first, then by recency
+        reqs.sort((a, b) {
+          final aTargeted = a.currentTargetDonorId == user?.id ? 0 : 1;
+          final bTargeted = b.currentTargetDonorId == user?.id ? 0 : 1;
+          if (aTargeted != bTargeted) return aTargeted.compareTo(bTargeted);
+          return b.createdAt.compareTo(a.createdAt);
+        });
         if (reqs.isEmpty) {
           return SliverToBoxAdapter(
             child: GlassCard(
@@ -507,19 +550,44 @@ class _DonorDashboardState extends State<DonorDashboard> {
 
   Widget _requestCard(BloodRequestModel r, dynamic user) {
     final dist = LocationUtils.calculateDistance(
-      user.latitude,
-      user.longitude,
+      _livePosition?.latitude ?? user.latitude,
+      _livePosition?.longitude ?? user.longitude,
       r.latitude,
       r.longitude,
     );
+    final bool isTargeted = r.currentTargetDonorId == user.id;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GlassCard(
-        isHighlighted: r.isSOS,
-        borderColor: r.isSOS ? AppColors.error : AppColors.border,
+        isHighlighted: r.isSOS || isTargeted,
+        borderColor: r.isSOS ? AppColors.error : isTargeted ? AppColors.info : AppColors.border,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // AI targeting badge
+            if (isTargeted)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [const Color(0xFF0EA5E9).withValues(alpha: 0.2), const Color(0xFF7C3AED).withValues(alpha: 0.1)],
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.gps_fixed_rounded, color: AppColors.info, size: 18)
+                        .animate(onPlay: (c) => c.repeat(reverse: true))
+                        .scale(begin: const Offset(1, 1), end: const Offset(1.2, 1.2), duration: 800.ms),
+                    const SizedBox(width: 8),
+                    Text('AI HAS SELECTED YOU — NEAREST DONOR',
+                        style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.info, letterSpacing: 0.3)),
+                  ],
+                ),
+              ).animate().shimmer(color: AppColors.info.withValues(alpha: 0.3), duration: 2.seconds),
             if (r.isSOS)
               Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -621,11 +689,14 @@ class _DonorDashboardState extends State<DonorDashboard> {
                             color: AppColors.info,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '${LocationUtils.formatDistance(dist)} away',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppColors.textSecondary,
+                          Flexible(
+                            child: Text(
+                              '${LocationUtils.formatDistance(dist)} away',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ),
                         ],
@@ -828,41 +899,14 @@ class _DonorDashboardState extends State<DonorDashboard> {
                       const Icon(Icons.local_shipping_rounded,
                           color: AppColors.info, size: 22),
                       const SizedBox(width: 10),
-                      const Text('🚑 Ambulance Dispatched!',
-                          style: TextStyle(
-                              color: AppColors.info,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      Column(
-                        children: [
-                          Text('${assignment.etaMinutes} min',
-                              style: const TextStyle(
-                                  color: AppColors.warning,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800)),
-                          Text('ETA',
-                              style: TextStyle(
-                                  fontSize: 11, color: AppColors.textMuted)),
-                        ],
-                      ),
-                      Container(width: 1, height: 30, color: AppColors.border),
-                      Column(
-                        children: [
-                          Text('${assignment.distanceKm} km',
-                              style: const TextStyle(
-                                  color: AppColors.info,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800)),
-                          Text('Distance',
-                              style: TextStyle(
-                                  fontSize: 11, color: AppColors.textMuted)),
-                        ],
+                      const Expanded(
+                        child: Text('🚑 Ambulance Auto-Dispatched',
+                            style: TextStyle(
+                                color: AppColors.info,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis),
                       ),
                     ],
                   ),
@@ -876,30 +920,6 @@ class _DonorDashboardState extends State<DonorDashboard> {
             onPressed: () => Navigator.pop(ctx),
             child: Text('Close',
                 style: TextStyle(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(ctx);
-              // Navigate to ambulance tracking
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => AmbulanceTrackingScreen(
-                    requestId: request.id,
-                    ambulanceId: assignment.ambulanceId,
-                    destinationLat: user.latitude,
-                    destinationLng: user.longitude,
-                    hospitalName: 'Your Location (Donor)',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.map_rounded, size: 18),
-            label: const Text('Track Live'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.info,
-              foregroundColor: Colors.white,
-            ),
           ),
         ],
       ),
@@ -1007,37 +1027,21 @@ class _DonorDashboardState extends State<DonorDashboard> {
                     // Show ambulance tracking button if ambulance is assigned
                     if (req.assignedAmbulanceId != null) ...[
                       const SizedBox(height: 12),
-                      SizedBox(
+                      Container(
                         width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => AmbulanceTrackingScreen(
-                                    requestId: req.id,
-                                    ambulanceId: req.assignedAmbulanceId!,
-                                    destinationLat: context.read<AuthProvider>().userModel?.latitude ?? req.latitude,
-                                    destinationLng: context.read<AuthProvider>().userModel?.longitude ?? req.longitude,
-                                    hospitalName: 'Your Location (Donor)',
-                                  ),
-                              ),
-                            );
-                          },
-                          icon: const Icon(Icons.local_shipping_rounded,
-                              size: 18, color: AppColors.info),
-                          label: const Text('Track Ambulance',
-                              style: TextStyle(
-                                  color: AppColors.info,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13)),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            side: BorderSide(
-                                color: AppColors.info.withValues(alpha: 0.4)),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10)),
-                          ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.local_shipping_rounded, size: 18, color: AppColors.info),
+                            const SizedBox(width: 8),
+                            const Text('Ambulance Auto-Dispatched', style: TextStyle(color: AppColors.info, fontWeight: FontWeight.w600, fontSize: 13)),
+                          ],
                         ),
                       ),
                     ],

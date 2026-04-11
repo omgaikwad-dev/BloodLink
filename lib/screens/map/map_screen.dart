@@ -36,51 +36,17 @@ class _MapScreenState extends State<MapScreen> {
     _initLocation();
   }
 
-  /// Get the real device GPS location
+  /// Get the real device GPS location (Forced to Pune per configuration)
   Future<void> _initLocation() async {
     try {
-      // Check if location services are enabled
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        debugPrint('>>> Location services disabled');
-        _useDefaultAndContinue();
-        return;
-      }
-
-      // Check & request permissions
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          debugPrint('>>> Location permission denied');
-          _useDefaultAndContinue();
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        debugPrint('>>> Location permission denied forever');
-        _useDefaultAndContinue();
-        return;
-      }
-
-      // Try to get last known position for instant map load
-      Position? position = await Geolocator.getLastKnownPosition();
+      debugPrint('>>> Forcing GPS Location to Pune for perfect tracking');
       
-      // If null, get the actual current position
-      position ??= await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 5),
-        ),
-      );
-
-      final pos = position;
-      debugPrint('>>> GPS Location: ${pos.latitude}, ${pos.longitude}');
+      const double targetLat = 18.5196;
+      const double targetLng = 73.8553;
 
       if (mounted) {
         setState(() {
-          _currentPosition = LatLng(pos.latitude, pos.longitude);
+          _currentPosition = const LatLng(targetLat, targetLng);
           _locationLoading = false;
         });
 
@@ -91,12 +57,12 @@ class _MapScreenState extends State<MapScreen> {
         _addCurrentLocationMarker();
 
         // Also update the user's location in Firestore
-        _updateUserLocation(pos.latitude, pos.longitude);
+        _updateUserLocation(targetLat, targetLng);
 
         _loadMarkers();
       }
     } catch (e) {
-      debugPrint('>>> Error getting location: $e');
+      debugPrint('>>> Error setting location: $e');
       _useDefaultAndContinue();
     }
   }

@@ -646,27 +646,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
 
           const SizedBox(height: 14),
 
-          // Track button
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AmbulanceTrackingScreen(
-                requestId: req.id,
-                ambulanceId: req.assignedAmbulanceId!,
-                destinationLat: req.latitude,
-                destinationLng: req.longitude,
-                hospitalName: req.hospitalName,
-              ))),
-              icon: const Icon(Icons.my_location_rounded, size: 18, color: Colors.white),
-              label: Text('Track Ambulance & Donor Live', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.white)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.info,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 2,
-              ),
-            ),
-          ),
+
 
           const SizedBox(height: 8),
 
@@ -1114,6 +1094,103 @@ class _HospitalDashboardState extends State<HospitalDashboard>
             ]),
           ),
         ],
+
+        // ─── SMART ROUTING: Targeting a donor (pending state) ───
+        if (req.status == 'pending' && req.currentTargetDonorName != null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [const Color(0xFF0EA5E9).withValues(alpha: 0.12), const Color(0xFF7C3AED).withValues(alpha: 0.06)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF0EA5E9).withValues(alpha: 0.3)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: const Icon(Icons.gps_fixed_rounded, color: AppColors.info, size: 16),
+                ),
+                const SizedBox(width: 10),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('AI Targeting: ${req.currentTargetDonorName}',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  const SizedBox(height: 2),
+                  Text('Waiting for donor response...', style: GoogleFonts.inter(fontSize: 11, color: AppColors.info)),
+                ])),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: AppColors.warning.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Container(width: 6, height: 6, decoration: BoxDecoration(shape: BoxShape.circle, color: AppColors.warning))
+                        .animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 600.ms),
+                    const SizedBox(width: 4),
+                    Text('5 MIN', style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.warning)),
+                  ]),
+                ),
+              ]),
+              if (req.currentTargetDistanceKm != null) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(color: AppColors.bgDark, borderRadius: BorderRadius.circular(10), border: Border.all(color: AppColors.border)),
+                  child: Row(children: [
+                    const Icon(Icons.route_rounded, color: AppColors.info, size: 20),
+                    const SizedBox(width: 10),
+                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Distance to Donor', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                      Text('${req.currentTargetDistanceKm!.toStringAsFixed(1)} km',
+                          style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.info)),
+                    ]),
+                    const Spacer(),
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text('ETA', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                      Text(_estimateETA(req.currentTargetDistanceKm!),
+                          style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    ]),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: () => _showDonorDistanceMap(context, req),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.info.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.info.withValues(alpha: 0.3)),
+                        ),
+                        child: const Icon(Icons.map_rounded, color: AppColors.info, size: 20),
+                      ),
+                    ),
+                  ]),
+                ),
+              ],
+            ]),
+          ).animate().fade(duration: 300.ms).slideY(begin: 0.05, end: 0),
+        ],
+
+        // Show scanning animation when pending with no target
+        if (req.status == 'pending' && req.currentTargetDonorName == null && req.assignedDonorName == null) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+            ),
+            child: Row(children: [
+              const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.warning)),
+              const SizedBox(width: 10),
+              Expanded(child: Text('AI is analyzing and finding the nearest compatible donor...',
+                  style: GoogleFonts.inter(fontSize: 12, color: AppColors.warning, fontWeight: FontWeight.w500))),
+            ]),
+          ),
+        ],
+
+        // Assigned donor info
         if (req.assignedDonorName != null) ...[
           const SizedBox(height: 10),
           Container(
@@ -1123,14 +1200,23 @@ class _HospitalDashboardState extends State<HospitalDashboard>
               const Icon(Icons.person_rounded, color: AppColors.success, size: 16),
               const SizedBox(width: 6),
               Text('Donor: ${req.assignedDonorName}', style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w500)),
+              if (req.currentTargetDistanceKm != null) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.route_rounded, size: 11, color: AppColors.info),
+                    const SizedBox(width: 3),
+                    Text('${req.currentTargetDistanceKm!.toStringAsFixed(1)} km', style: const TextStyle(fontSize: 10, color: AppColors.info, fontWeight: FontWeight.w700)),
+                  ]),
+                ),
+              ],
               if (req.assignedAmbulanceId != null) ...[
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
+                  decoration: BoxDecoration(color: AppColors.info.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
                     const Icon(Icons.local_shipping_rounded, size: 12, color: AppColors.info),
                     const SizedBox(width: 4),
@@ -1143,6 +1229,24 @@ class _HospitalDashboardState extends State<HospitalDashboard>
         ],
         if (req.isActive) ...[
           const SizedBox(height: 12),
+          // Map button for accepted donors with distance
+          if (req.assignedDonorName != null && req.currentTargetDistanceKm != null && req.assignedAmbulanceId == null) ...[
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _showDonorDistanceMap(context, req),
+                icon: const Icon(Icons.map_rounded, size: 16),
+                label: Text('View Donor on Map (${req.currentTargetDistanceKm!.toStringAsFixed(1)} km)', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.info,
+                  side: BorderSide(color: AppColors.info.withValues(alpha: 0.4)),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           if (req.assignedAmbulanceId != null) ...[
             SizedBox(
               width: double.infinity,
@@ -1153,6 +1257,7 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                   destinationLat: req.latitude,
                   destinationLng: req.longitude,
                   hospitalName: req.hospitalName,
+                  donorId: req.assignedDonorId,
                 ))),
                 icon: const Icon(Icons.my_location_rounded, size: 16, color: Colors.white),
                 label: const Text('Track Ambulance & Donor', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white)),
@@ -1301,5 +1406,248 @@ class _HospitalDashboardState extends State<HospitalDashboard>
   Color _getUrgencyColor(String u) {
     switch (u) { case 'SOS': return AppColors.urgencySOS; case 'Critical': return AppColors.urgencyCritical;
       case 'Urgent': return AppColors.urgencyUrgent; default: return AppColors.urgencyNormal; }
+  }
+
+  String _estimateETA(double distanceKm) {
+    const double avgSpeedKmh = 30.0;
+    final double timeHours = distanceKm / avgSpeedKmh;
+    final int timeMinutes = (timeHours * 60).ceil();
+    if (timeMinutes < 1) return '< 1 min';
+    if (timeMinutes < 60) return '$timeMinutes min';
+    final int hours = timeMinutes ~/ 60;
+    final int mins = timeMinutes % 60;
+    return '${hours}h ${mins}m';
+  }
+
+  void _showDonorDistanceMap(BuildContext context, BloodRequestModel req) {
+    final distance = req.currentTargetDistanceKm ?? 0.0;
+    final donorName = req.currentTargetDonorName ?? req.assignedDonorName ?? 'Donor';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: AppColors.bgDark,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border(top: BorderSide(color: AppColors.info.withValues(alpha: 0.3))),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 20),
+            Text('Hospital ↔ Donor Distance', style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            const SizedBox(height: 6),
+            Text('Real-time routing visualization', style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 30),
+
+            // Visual distance map
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  children: [
+                    // Distance visualization
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.info.withValues(alpha: 0.08), AppColors.primary.withValues(alpha: 0.04)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              // Hospital pin
+                              Column(
+                                children: [
+                                  Container(
+                                    width: 56, height: 56,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(colors: [Color(0xFFE53935), Color(0xFFFF5252)]),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 12)],
+                                    ),
+                                    child: const Icon(Icons.local_hospital_rounded, color: Colors.white, size: 28),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text('Hospital', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+
+                              // Route line with distance
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Stack(
+                                      alignment: Alignment.center,
+                                      children: [
+                                        Container(
+                                          height: 3,
+                                          margin: const EdgeInsets.symmetric(horizontal: 8),
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [AppColors.primary, AppColors.info, AppColors.success]),
+                                            borderRadius: BorderRadius.circular(2),
+                                          ),
+                                        ),
+                                        // Distance bubble
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.bgCard,
+                                            borderRadius: BorderRadius.circular(20),
+                                            border: Border.all(color: AppColors.info),
+                                            boxShadow: [BoxShadow(color: AppColors.info.withValues(alpha: 0.2), blurRadius: 8)],
+                                          ),
+                                          child: Text('${distance.toStringAsFixed(1)} km',
+                                              style: GoogleFonts.outfit(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.info)),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.directions_car_rounded, size: 14, color: AppColors.textMuted),
+                                        const SizedBox(width: 4),
+                                        Text('ETA: ${_estimateETA(distance)}',
+                                            style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              // Donor pin
+                              Column(
+                                children: [
+                                  Container(
+                                    width: 56, height: 56,
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(colors: [Color(0xFF43A047), Color(0xFF66BB6A)]),
+                                      shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: AppColors.success.withValues(alpha: 0.4), blurRadius: 12)],
+                                    ),
+                                    child: Center(
+                                      child: Text(req.bloodGroup,
+                                          style: GoogleFonts.outfit(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text('Donor', style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Info cards
+                    Row(
+                      children: [
+                        Expanded(child: _mapInfoCard('Donor', donorName, Icons.person_rounded, AppColors.success)),
+                        const SizedBox(width: 10),
+                        Expanded(child: _mapInfoCard('Blood Type', req.bloodGroup, Icons.bloodtype_rounded, AppColors.primary)),
+                        const SizedBox(width: 10),
+                        Expanded(child: _mapInfoCard('Units', '${req.units}', Icons.water_drop_rounded, AppColors.warning)),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(child: _mapInfoCard('Distance', '${distance.toStringAsFixed(1)} km', Icons.route_rounded, AppColors.info)),
+                        const SizedBox(width: 10),
+                        Expanded(child: _mapInfoCard('ETA', _estimateETA(distance), Icons.schedule_rounded, AppColors.warning)),
+                        const SizedBox(width: 10),
+                        Expanded(child: _mapInfoCard('Urgency', req.urgency, Icons.priority_high_rounded, _getUrgencyColor(req.urgency))),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Status bar
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: (req.status == 'pending' ? AppColors.warning : AppColors.success).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: (req.status == 'pending' ? AppColors.warning : AppColors.success).withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(req.status == 'pending' ? Icons.hourglass_top_rounded : Icons.check_circle_rounded,
+                              color: req.status == 'pending' ? AppColors.warning : AppColors.success, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            req.status == 'pending'
+                                ? 'Waiting for $donorName to accept (5 min timeout)'
+                                : '$donorName accepted! ${req.assignedAmbulanceId != null ? "Ambulance dispatched" : "Preparing dispatch"}',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: req.status == 'pending' ? AppColors.warning : AppColors.success,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.info,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _mapInfoCard(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 6),
+          Text(value, style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          Text(label, style: GoogleFonts.inter(fontSize: 10, color: AppColors.textSecondary)),
+        ],
+      ),
+    );
   }
 }
