@@ -8,6 +8,7 @@ library;
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/firestore_service.dart';
 import '../services/notification_service.dart';
 import '../services/matching_engine.dart';
@@ -88,9 +89,41 @@ class SmartDonorRoutingService {
         return null;
       }
 
-      // 2. Use matching engine to find ranked donors
+      // 1b. Try to get live hospital position for accurate distance
+      BloodRequestModel liveRequest = request;
+      try {
+        bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (serviceEnabled) {
+          LocationPermission perm = await Geolocator.checkPermission();
+          if (perm == LocationPermission.whileInUse || perm == LocationPermission.always) {
+            Position pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
+            if (pos.latitude != 0 && pos.longitude != 0) {
+              // Create a copy of the request with live hospital coordinates
+              liveRequest = BloodRequestModel(
+                id: request.id,
+                hospitalId: request.hospitalId,
+                hospitalName: request.hospitalName,
+                bloodGroup: request.bloodGroup,
+                units: request.units,
+                urgency: request.urgency,
+                latitude: pos.latitude,
+                longitude: pos.longitude,
+                notes: request.notes,
+                status: request.status,
+                notifiedDonorIds: request.notifiedDonorIds,
+                rejectedDonorIds: request.rejectedDonorIds,
+              );
+              debugPrint('>>> SmartRouting: Using live GPS (${pos.latitude}, ${pos.longitude})');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('>>> SmartRouting: GPS fallback to stored coords: $e');
+      }
+
+      // 2. Use matching engine to find ranked donors (now with live location)
       final matches = MatchingEngine.findMatches(
-        request: request,
+        request: liveRequest,
         donors: donorsSnapshot,
       );
 

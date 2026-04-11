@@ -5,10 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/firestore_service.dart';
 import '../../providers/auth_provider.dart';
+import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 
 class MapScreen extends StatefulWidget {
@@ -36,28 +36,48 @@ class _MapScreenState extends State<MapScreen> {
     _initLocation();
   }
 
-  /// Get the real device GPS location (Forced to Pune per configuration)
+  /// Get the real device GPS location
   Future<void> _initLocation() async {
     try {
-      debugPrint('>>> Forcing GPS Location to Pune for perfect tracking');
-      
-      const double targetLat = 18.5196;
-      const double targetLng = 73.8553;
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _useDefaultAndContinue();
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _useDefaultAndContinue();
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _useDefaultAndContinue();
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
 
       if (mounted) {
         setState(() {
-          _currentPosition = const LatLng(targetLat, targetLng);
+          _currentPosition = LatLng(position.latitude, position.longitude);
           _locationLoading = false;
         });
-
-        // Move map to actual GPS location
-        _mapController.move(_currentPosition!, 15);
 
         // Add "You are here" marker
         _addCurrentLocationMarker();
 
         // Also update the user's location in Firestore
-        _updateUserLocation(targetLat, targetLng);
+        _updateUserLocation(position.latitude, position.longitude);
+
+        // Move map if it has already rendered and controller is ready
+        try {
+          _mapController.move(_currentPosition!, 15);
+        } catch (_) {}
 
         _loadMarkers();
       }
@@ -80,7 +100,9 @@ class _MapScreenState extends State<MapScreen> {
         _currentPosition = pos;
         _locationLoading = false;
       });
-      _mapController.move(pos, 13);
+      try {
+        _mapController.move(pos, 13);
+      } catch (_) {}
       _addCurrentLocationMarker();
       _loadMarkers();
     }
@@ -159,6 +181,11 @@ class _MapScreenState extends State<MapScreen> {
             options: MapOptions(
               initialCenter: startPos,
               initialZoom: 15,
+              onMapReady: () {
+                if (_currentPosition != null) {
+                  _mapController.move(_currentPosition!, 15);
+                }
+              },
               backgroundColor: const Color(0xFF1A1A2E),
               interactionOptions: const InteractionOptions(
                 flags: InteractiveFlag.all,

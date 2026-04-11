@@ -57,7 +57,7 @@ class _DonorDashboardState extends State<DonorDashboard> {
       }
       if (permission == LocationPermission.deniedForever) return;
       
-      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      Position position = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
       if (mounted) {
         setState(() => _livePosition = position);
         if (context.mounted) {
