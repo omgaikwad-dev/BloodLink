@@ -413,7 +413,7 @@ class _EmergencyClassifierScreenState extends State<EmergencyClassifierScreen> {
                     children: [
                       const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
                       const SizedBox(width: 8),
-                      Expanded(child: Text(a, style: TextStyle(color: AppColors.textPrimary, fontSize: 13))),
+                      Expanded(child: Text(a, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13))),
                     ],
                   ),
                 ),
@@ -421,6 +421,67 @@ class _EmergencyClassifierScreenState extends State<EmergencyClassifierScreen> {
             ],
           ),
         ),
+        
+        if (result.requiredSurgery != null || result.treatmentPlan.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '🩺 Medical Insights',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                if (result.requiredSurgery != null) ...[
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE11D48).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.medical_services_rounded, size: 16, color: Color(0xFFE11D48)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Required Surgery / Procedure', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                            const SizedBox(height: 4),
+                            Text(result.requiredSurgery!, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                if (result.requiredSurgery != null && result.treatmentPlan.isNotEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(color: AppColors.border, height: 1),
+                  ),
+                if (result.treatmentPlan.isNotEmpty) ...[
+                  const Text('Immediate Treatment Plan:', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                  const SizedBox(height: 8),
+                  ...result.treatmentPlan.map((t) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                         const Text('• ', style: TextStyle(color: Color(0xFF0EA5E9), fontSize: 14, fontWeight: FontWeight.w700)),
+                         Expanded(child: Text(t, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.3))),
+                      ],
+                    ),
+                  )),
+                ],
+              ],
+            ),
+          ).animate().fade(delay: 200.ms).slideY(begin: 0.1, end: 0),
+        ],
       ],
     );
   }

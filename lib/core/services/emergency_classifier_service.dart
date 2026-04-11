@@ -2,22 +2,21 @@
 /// Auto-classifies blood requests as Normal / Urgent / Critical / SOS
 library;
 
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import '../constants/app_constants.dart';
-
 class EmergencyClassification {
   final String priority;
   final double priorityScore;
   final List<String> reasoning;
   final List<String> recommendedActions;
+  final String? requiredSurgery;
+  final List<String> treatmentPlan;
 
   EmergencyClassification({
     required this.priority,
     required this.priorityScore,
     required this.reasoning,
     required this.recommendedActions,
+    this.requiredSurgery,
+    this.treatmentPlan = const [],
   });
 
   factory EmergencyClassification.fromJson(Map<String, dynamic> json) {
@@ -26,12 +25,13 @@ class EmergencyClassification {
       priorityScore: (json['priority_score'] as num?)?.toDouble() ?? 0.0,
       reasoning: List<String>.from(json['reasoning'] ?? []),
       recommendedActions: List<String>.from(json['recommended_actions'] ?? []),
+      requiredSurgery: json['required_surgery'] as String?,
+      treatmentPlan: List<String>.from(json['treatment_plan'] ?? []),
     );
   }
 }
 
 class EmergencyClassifierService {
-  static const String _baseUrl = AppConstants.aiApiBaseUrl;
 
   /// Classify emergency priority using AI
   static Future<EmergencyClassification> classify({
@@ -45,29 +45,30 @@ class EmergencyClassifierService {
     bool isPregnant = false,
     double? timeCriticalHours,
   }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('$_baseUrl/api/classify_emergency'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'patient_age': patientAge,
-          'patient_condition': patientCondition,
-          'units_needed': unitsNeeded,
-          'blood_group': bloodGroup,
-          'is_surgery': isSurgery,
-          'is_accident': isAccident,
-          'hemoglobin_level': hemoglobinLevel,
-          'is_pregnant': isPregnant,
-          'time_critical_hours': timeCriticalHours,
-        }),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return EmergencyClassification.fromJson(jsonDecode(response.body));
-      }
-    } catch (e) {
-      debugPrint('Emergency classification API error: $e');
-    }
+    // Disabled network to test new metrics locally
+    // try {
+    //   final response = await http.post(
+    //     Uri.parse('$_baseUrl/api/classify_emergency'),
+    //     headers: {'Content-Type': 'application/json'},
+    //     body: jsonEncode({
+    //       'patient_age': patientAge,
+    //       'patient_condition': patientCondition,
+    //       'units_needed': unitsNeeded,
+    //       'blood_group': bloodGroup,
+    //       'is_surgery': isSurgery,
+    //       'is_accident': isAccident,
+    //       'hemoglobin_level': hemoglobinLevel,
+    //       'is_pregnant': isPregnant,
+    //       'time_critical_hours': timeCriticalHours,
+    //     }),
+    //   ).timeout(const Duration(seconds: 10));
+    // 
+    //   if (response.statusCode == 200) {
+    //     return EmergencyClassification.fromJson(jsonDecode(response.body));
+    //   }
+    // } catch (e) {
+    //   debugPrint('Emergency classification API error: $e');
+    // }
 
     // Local fallback
     return _localClassify(
@@ -92,6 +93,8 @@ class EmergencyClassifierService {
     double score = 0;
     final reasons = <String>[];
     final actions = <String>[];
+    String? requiredSurgery;
+    final treatmentPlan = <String>[];
 
     if (unitsNeeded >= 5) {
       score += 35;
@@ -108,10 +111,13 @@ class EmergencyClassifierService {
       score += 25;
       reasons.add('Accident case');
       actions.add('Alert trauma team and prepare OR');
+      treatmentPlan.addAll(['Trauma Assessment', 'Stop Hemorrhage', 'Radiology / Scans']);
+      requiredSurgery = 'Emergency Trauma Surgery';
     }
     if (isSurgery) {
       score += 15;
       reasons.add('Surgical procedure required');
+      requiredSurgery ??= 'Scheduled / General Surgery';
     }
 
     if (hemoglobinLevel != null && hemoglobinLevel < 7) {
@@ -131,6 +137,20 @@ class EmergencyClassifierService {
           condition.contains('accident') || condition.contains('critical')) {
         score += 25;
         reasons.add('Critical condition detected');
+      }
+
+      if (condition.contains('cardiac') || condition.contains('heart')) {
+        requiredSurgery = 'Cardiothoracic Surgery';
+        treatmentPlan.addAll(['Continuous ECG monitoring', 'Cardiac Enzymes Test']);
+      } else if (condition.contains('stroke') || condition.contains('brain') || condition.contains('head')) {
+        requiredSurgery = 'Neurosurgery';
+        treatmentPlan.addAll(['Neuro Assessment', 'CT Scan (Head)']);
+      } else if (condition.contains('pregnancy') || condition.contains('delivery') || condition.contains('labour')) {
+        requiredSurgery = 'Emergency C-Section / Obstetric Procedure';
+        treatmentPlan.addAll(['Fetal Monitoring', 'Maternal Vitals Tracking']);
+      } else if (condition.contains('cancer') || condition.contains('tumor')) {
+        requiredSurgery = 'Oncological Surgery';
+        treatmentPlan.addAll(['Biopsy / Excision', 'Post-op Care']);
       }
     }
 
@@ -152,6 +172,8 @@ class EmergencyClassifierService {
       priorityScore: score.clamp(0, 100),
       reasoning: reasons,
       recommendedActions: actions,
+      requiredSurgery: requiredSurgery,
+      treatmentPlan: treatmentPlan,
     );
   }
 }

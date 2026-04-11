@@ -98,6 +98,8 @@ class EmergencyClassifyResult(BaseModel):
     priority_score: float
     reasoning: list[str]
     recommended_actions: list[str]
+    required_surgery: Optional[str] = None
+    treatment_plan: list[str] = []
 
 class ChatMessage(BaseModel):
     message: str
@@ -366,6 +368,8 @@ async def classify_emergency(request: EmergencyClassifyInput, x_api_key: Optiona
     score = 0.0
     reasons = []
     actions = []
+    required_surgery = None
+    treatment_plan = []
 
     # Units needed
     if request.units_needed >= 5:
@@ -397,6 +401,19 @@ async def classify_emergency(request: EmergencyClassifyInput, x_api_key: Optiona
             score += 15
             reasons.append(f"Urgent condition detected: {', '.join(urg_matches)} (+15)")
 
+        if "cardiac" in condition or "heart" in condition:
+            required_surgery = "Cardiothoracic Surgery"
+            treatment_plan.extend(["Continuous ECG monitoring", "Cardiac Enzymes Test"])
+        elif "stroke" in condition or "brain" in condition or "head" in condition:
+            required_surgery = "Neurosurgery"
+            treatment_plan.extend(["Neuro Assessment", "CT Scan (Head)"])
+        elif "pregnancy" in condition or "delivery" in condition or "labour" in condition or request.is_pregnant:
+            required_surgery = "Emergency C-Section / Obstetric Procedure"
+            treatment_plan.extend(["Fetal Monitoring", "Maternal Vitals Tracking"])
+        elif "cancer" in condition or "tumor" in condition:
+            required_surgery = "Oncological Surgery"
+            treatment_plan.extend(["Biopsy / Excision", "Post-op Care"])
+
     # Patient age
     if request.patient_age:
         if request.patient_age < 5 or request.patient_age > 70:
@@ -412,9 +429,13 @@ async def classify_emergency(request: EmergencyClassifyInput, x_api_key: Optiona
         score += 25
         reasons.append("Accident case (+25)")
         actions.append("Alert trauma team and prepare OR")
+        treatment_plan.extend(["Trauma Assessment", "Stop Hemorrhage", "Radiology / Scans"])
+        required_surgery = "Emergency Trauma Surgery"
     if request.is_surgery:
         score += 15
         reasons.append("Surgical procedure required (+15)")
+        if not required_surgery:
+            required_surgery = "Scheduled / General Surgery"
 
     # Hemoglobin level
     if request.hemoglobin_level is not None:
@@ -471,6 +492,8 @@ async def classify_emergency(request: EmergencyClassifyInput, x_api_key: Optiona
         priority_score=round(min(score, 100), 1),
         reasoning=reasons if reasons else ["Standard blood request — no critical indicators"],
         recommended_actions=actions,
+        required_surgery=required_surgery,
+        treatment_plan=treatment_plan,
     )
 
 

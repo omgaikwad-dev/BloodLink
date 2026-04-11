@@ -860,11 +860,13 @@ class _HospitalDashboardState extends State<HospitalDashboard>
     final mockBpm = isBank ? 0 : (70 + (user.name.length % 12)); 
     final isHealthy = mockBpm <= 80;
 
-    return GlassCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(children: [
-        Container(
-          width: 50, height: 50,
+    return GestureDetector(
+      onTap: () => _showUserDetails(context, user, isBank, mockBpm, isHealthy),
+      child: GlassCard(
+        padding: const EdgeInsets.all(16),
+        child: Row(children: [
+          Container(
+            width: 50, height: 50,
           decoration: BoxDecoration(
             gradient: LinearGradient(colors: isBank 
                 ? [AppColors.error, const Color(0xFFFF5252)]
@@ -940,6 +942,90 @@ class _HospitalDashboardState extends State<HospitalDashboard>
                 color: isBank || available ? AppColors.success : AppColors.textMuted)),
           ]),
         ),
+      ]),
+    ));
+  }
+
+  void _showUserDetails(BuildContext context, UserModel user, bool isBank, int bpm, bool isHealthy) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.bgDark,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          border: Border(top: BorderSide(color: (isBank ? AppColors.error : AppColors.success).withValues(alpha: 0.3))),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: AppColors.textMuted.withValues(alpha: 0.5), borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 24),
+            Container(
+              width: 80, height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(colors: isBank ? [AppColors.error, const Color(0xFFFF5252)] : [const Color(0xFF43A047), const Color(0xFF66BB6A)]),
+                boxShadow: [BoxShadow(color: (isBank ? AppColors.error : AppColors.success).withValues(alpha: 0.4), blurRadius: 16)],
+              ),
+              child: Center(
+                child: isBank 
+                  ? const Icon(Icons.maps_home_work_rounded, color: Colors.white, size: 36)
+                  : Text(user.bloodGroup.isNotEmpty ? user.bloodGroup : '?', style: GoogleFonts.outfit(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(user.name, style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+            Text(isBank ? 'Blood Bank Facility' : 'Active Donor Participant', style: GoogleFonts.inter(fontSize: 14, color: isBank ? AppColors.error : AppColors.success, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 30),
+            
+            _userCardDetailRow(Icons.email_rounded, 'Email', user.email.isNotEmpty ? user.email : 'Not Provided'),
+            const SizedBox(height: 16),
+            _userCardDetailRow(Icons.phone_rounded, 'Phone', user.phone.isNotEmpty ? user.phone : 'Not Provided'),
+            if (user.role == 'donor') ...[
+              const SizedBox(height: 16),
+              _userCardDetailRow(Icons.bloodtype_rounded, 'Blood Group', user.bloodGroup),
+              const SizedBox(height: 16),
+              _userCardDetailRow(Icons.monitor_heart_rounded, 'Live Vitals (Hb/SpO2/BPM)', '13.2 g/dL | 98% | $bpm BPM', valueColor: isHealthy ? AppColors.info : AppColors.warning),
+              const SizedBox(height: 16),
+              _userCardDetailRow(Icons.history_rounded, 'Last Donation', user.lastDonationDate ?? 'No Records'),
+            ],
+            const SizedBox(height: 30),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.call_rounded, size: 18),
+                label: const Text('Contact Directly', style: TextStyle(fontWeight: FontWeight.w700)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                ),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _userCardDetailRow(IconData icon, String label, String value, {Color? valueColor}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: AppColors.bgCard, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+      child: Row(children: [
+        Icon(icon, color: AppColors.textMuted, size: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: GoogleFonts.inter(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(value, style: GoogleFonts.inter(fontSize: 14, color: valueColor ?? AppColors.textPrimary, fontWeight: FontWeight.w600)),
+        ])),
       ]),
     );
   }
