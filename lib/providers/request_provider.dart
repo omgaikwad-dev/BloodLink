@@ -12,6 +12,7 @@ import '../models/blood_request_model.dart';
 import '../models/user_model.dart';
 import '../core/services/sms_service.dart';
 import '../core/constants/app_constants.dart';
+import '../core/utils/location_utils.dart';
 
 class RequestProvider extends ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
@@ -212,30 +213,47 @@ class RequestProvider extends ChangeNotifier {
       try {
         // Get the request details to find hospital location
         final reqDoc = await _firestoreService.getRequest(requestId);
-        if (reqDoc != null) {
-          final assignment = await SmartAmbulanceService.autoAssign(
-            requestLat: donorLat ?? 0,
-            requestLng: donorLng ?? 0,
-            hospitalLat: reqDoc.latitude,
-            hospitalLng: reqDoc.longitude,
-            urgency: reqDoc.urgency,
+        
+        if (reqDoc != null && donorLat != null && donorLng != null && donorLat != 0 && donorLng != 0) {
+          final distanceKm = LocationUtils.calculateDistance(
+            donorLat, donorLng,
+            reqDoc.latitude, reqDoc.longitude,
           );
-
-          if (assignment != null) {
-            // Assign ambulance to the request
-            await _firestoreService.assignAmbulance(assignment.ambulanceId, requestId);
-            _lastAmbulanceAssignment = assignment;
-
-            // Notify about ambulance dispatch
-            await _notificationService.showNotification(
-              title: '🚑 Ambulance Dispatched!',
-              body: 'ETA: ${assignment.etaMinutes} min • ${assignment.distanceKm} km away',
-              channelId: 'request_channel',
+          
+          if (distanceKm > 2.0) {
+            final assignment = await SmartAmbulanceService.autoAssign(
+              requestLat: donorLat,
+              requestLng: donorLng,
+              hospitalLat: reqDoc.latitude,
+              hospitalLng: reqDoc.longitude,
+              urgency: reqDoc.urgency,
             );
 
-            debugPrint('>>> Ambulance dispatched: ${assignment.ambulanceId} | ETA: ${assignment.etaMinutes}min');
+            if (assignment != null) {
+              // Assign ambulance to the request
+              await _firestoreService.assignAmbulance(assignment.ambulanceId, requestId);
+              _lastAmbulanceAssignment = assignment;
+
+              // Notify about ambulance dispatch
+              await _notificationService.showNotification(
+                title: '🚑 Ambulance Dispatched!',
+                body: 'ETA: ${assignment.etaMinutes} min • You are ${distanceKm.toStringAsFixed(1)} km away',
+                channelId: 'request_channel',
+              );
+
+              debugPrint('>>> Ambulance dispatched: ${assignment.ambulanceId} | ETA: ${assignment.etaMinutes}min');
+            }
+          } else {
+            // Self-travel notification
+            await _notificationService.showNotification(
+              title: '📍 Walk-in Requested',
+              body: 'You are only ${distanceKm.toStringAsFixed(1)} km away from ${reqDoc.hospitalName}. Please proceed directly to the hospital!',
+              channelId: 'request_channel',
+            );
+            debugPrint('>>> Donor within 2km boundary (${distanceKm.toStringAsFixed(1)} km). Ambulance dispatch aborted.');
           }
         }
+
       } catch (e) {
         debugPrint('Ambulance auto-dispatch error (non-critical): $e');
         // Don't fail the acceptance if ambulance dispatch fails
