@@ -285,11 +285,14 @@ class RequestProvider extends ChangeNotifier {
 
         try {
           final req = await _firestoreService.getRequest(requestId);
+          if (status == 'completed' && req?.assignedDonorId != null) {
+            await _firestoreService.processSuccessfulDonation(req!.assignedDonorId!);
+          }
           if (req?.assignedAmbulanceId != null) {
             await _firestoreService.releaseAmbulance(req!.assignedAmbulanceId!);
           }
         } catch (e) {
-          debugPrint('Release ambulance error: $e');
+          debugPrint('Release ambulance or donation process error: $e');
         }
       }
     } catch (e) {

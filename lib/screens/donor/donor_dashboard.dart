@@ -18,6 +18,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:async';
 import 'package:geolocator/geolocator.dart';
+import 'certificate_screen.dart';
 
 class DonorDashboard extends StatefulWidget {
   const DonorDashboard({super.key});
@@ -156,6 +157,17 @@ class _DonorDashboardState extends State<DonorDashboard> {
                     .animate()
                     .fade(delay: 100.ms, duration: 400.ms)
                     .slideX(begin: 0.1, end: 0),
+                StreamBuilder<List<BloodRequestModel>>(
+                  stream: _fs.streamDonorRequests(context.read<AuthProvider>().firebaseUser?.uid ?? ''),
+                  builder: (context, snap) {
+                    final reqs = snap.data ?? [];
+                    final completed = reqs.where((r) => r.status == 'completed').length;
+                    return _buildCertificateButton(context, completed)
+                        .animate()
+                        .fade(delay: 120.ms)
+                        .slideY(begin: 0.1);
+                  },
+                ),
                 const SizedBox(height: 20),
                 _buildLiveHealthPulse()
                     .animate()
@@ -286,6 +298,30 @@ class _DonorDashboardState extends State<DonorDashboard> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.stars_rounded, color: Colors.amber, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${user?.creditPoints ?? 0} PTS',
+                      style: GoogleFonts.inter(color: Colors.amber, fontSize: 13, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                      ),
+                      child: Text(
+                        user?.rank ?? 'Bronze',
+                        style: GoogleFonts.inter(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
@@ -323,6 +359,45 @@ class _DonorDashboardState extends State<DonorDashboard> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildCertificateButton(BuildContext context, int completedReqs) {
+    if (completedReqs < 1) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        isHighlighted: true,
+        borderColor: Colors.amber.withValues(alpha: 0.3),
+        child: InkWell(
+          onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (_) => const CertificateScreen()));
+          },
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.workspace_premium_rounded, color: Colors.amber, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Honor Certificate Unlocked!', style: GoogleFonts.inter(color: Colors.amber, fontSize: 14, fontWeight: FontWeight.w700)),
+                  Text('Tap to view and download', style: GoogleFonts.inter(color: AppColors.textSecondary, fontSize: 12)),
+                ],
+              ),
+              const Spacer(),
+              const Icon(Icons.arrow_forward_ios_rounded, color: Colors.amber, size: 14),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

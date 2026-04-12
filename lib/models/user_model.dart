@@ -16,6 +16,7 @@ class UserModel {
   final bool isAvailable;
   final String? fcmToken;
   final String? profileImageUrl;
+  final int creditPoints;
   final DateTime createdAt;
   final Map<String, dynamic>? metadata;
 
@@ -32,6 +33,7 @@ class UserModel {
     this.isAvailable = true,
     this.fcmToken,
     this.profileImageUrl,
+    this.creditPoints = 0,
     DateTime? createdAt,
     this.metadata,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -54,6 +56,7 @@ class UserModel {
       isAvailable: data['isAvailable'] ?? true,
       fcmToken: data['fcmToken'],
       profileImageUrl: data['profileImageUrl'],
+      creditPoints: data['creditPoints'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       metadata: data['metadata'],
     );
@@ -75,6 +78,7 @@ class UserModel {
       'isAvailable': isAvailable,
       'fcmToken': fcmToken,
       'profileImageUrl': profileImageUrl,
+      'creditPoints': creditPoints,
       'createdAt': Timestamp.fromDate(createdAt),
       'metadata': metadata,
     };
@@ -86,6 +90,14 @@ class UserModel {
     final lastDate = DateTime.tryParse(lastDonationDate!);
     if (lastDate == null) return true;
     return DateTime.now().difference(lastDate).inDays >= 56;
+  }
+
+  /// Get Donor Rank based on credit points
+  String get rank {
+    if (creditPoints >= 200) return 'Hero';
+    if (creditPoints >= 100) return 'Gold';
+    if (creditPoints >= 50) return 'Silver';
+    return 'Bronze';
   }
 
   /// Copy with updated fields
@@ -101,6 +113,7 @@ class UserModel {
     bool? isAvailable,
     String? fcmToken,
     String? profileImageUrl,
+    int? creditPoints,
     Map<String, dynamic>? metadata,
   }) {
     return UserModel(
@@ -116,6 +129,7 @@ class UserModel {
       isAvailable: isAvailable ?? this.isAvailable,
       fcmToken: fcmToken ?? this.fcmToken,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
+      creditPoints: creditPoints ?? this.creditPoints,
       createdAt: createdAt,
       metadata: metadata ?? this.metadata,
     );

@@ -110,6 +110,19 @@ class FirestoreService {
         .update({'fcmToken': token});
   }
 
+  /// Process successful donation (add points, update last donation date)
+  Future<void> processSuccessfulDonation(String donorId) async {
+    final doc = await _db.collection(AppConstants.usersCollection).doc(donorId).get();
+    if (doc.exists) {
+      final data = doc.data() as Map<String, dynamic>;
+      int currentPoints = data['creditPoints'] ?? 0;
+      await _db.collection(AppConstants.usersCollection).doc(donorId).update({
+        'creditPoints': currentPoints + 50,
+        'lastDonationDate': DateTime.now().toIso8601String(),
+      });
+    }
+  }
+
   // ============ BLOOD REQUEST OPERATIONS ============
 
   /// Create new blood request
