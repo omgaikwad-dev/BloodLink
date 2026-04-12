@@ -1,4 +1,5 @@
 /// Notification service - handles FCM and local notifications
+/// On Web: Firebase Messaging is skipped (requires service worker + VAPID key)
 library;
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -18,6 +19,12 @@ class NotificationService {
 
   /// Initialize notification services
   Future<void> initialize() async {
+    // Firebase Messaging is not supported on web without a service worker + VAPID key
+    if (kIsWeb) {
+      debugPrint('NotificationService: Skipping FCM init on web platform.');
+      return;
+    }
+
     // Request permission
     await _messaging.requestPermission(
       alert: true,
@@ -26,7 +33,7 @@ class NotificationService {
       criticalAlert: true,
     );
 
-    // Initialize local notifications
+    // Initialize local notifications (Android / iOS only)
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosSettings = DarwinInitializationSettings(
       requestAlertPermission: true,
@@ -49,13 +56,15 @@ class NotificationService {
     FirebaseMessaging.onBackgroundMessage(_backgroundMessageHandler);
   }
 
-  /// Get FCM token
+  /// Get FCM token (returns null on web)
   Future<String?> getToken() async {
+    if (kIsWeb) return null;
     return await _messaging.getToken();
   }
 
-  /// Subscribe to topic
+  /// Subscribe to topic (no-op on web)
   Future<void> subscribeToTopic(String topic) async {
+    if (kIsWeb) return;
     await _messaging.subscribeToTopic(topic);
   }
 
@@ -86,7 +95,7 @@ class NotificationService {
 
     final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    
+
     if (androidPlugin != null) {
       await androidPlugin.createNotificationChannel(sosChannel);
       await androidPlugin.createNotificationChannel(requestChannel);
@@ -94,13 +103,18 @@ class NotificationService {
     }
   }
 
-  /// Show local notification
+  /// Show local notification (no-op on web)
   Future<void> showNotification({
     required String title,
     required String body,
     String channelId = 'general_channel',
     Map<String, String>? payload,
   }) async {
+    if (kIsWeb) {
+      debugPrint('NotificationService: [$title] $body');
+      return;
+    }
+
     final androidDetails = AndroidNotificationDetails(
       channelId,
       channelId == 'sos_channel' ? 'SOS Alerts' : 'Blood Requests',
@@ -148,12 +162,10 @@ class NotificationService {
     String urgency = 'Normal',
   }) async {
     try {
-      // Note: for production, use FCM v1 API and handle via backend.
-      // This is using the Legacy HTTP API for direct client-to-client messaging in demo mode.
       const String fcmServerKey = 'YOUR_FCM_SERVER_KEY_HERE';
-      
+
       if (fcmServerKey == 'YOUR_FCM_SERVER_KEY_HERE') {
-        debugPrint('FCM sending skipped: Provide a valid server key in NotificationService.');
+        debugPrint('FCM sending skipped: Provide a valid server key.');
         return;
       }
 
@@ -193,7 +205,7 @@ class NotificationService {
   }
 }
 
-/// Background message handler (must be top-level)
+/// Background message handler (must be top-level, Android/iOS only)
 @pragma('vm:entry-point')
 Future<void> _backgroundMessageHandler(RemoteMessage message) async {
   // Handle background message
