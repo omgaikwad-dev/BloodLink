@@ -11,6 +11,7 @@ import '../core/services/smart_donor_routing_service.dart';
 import '../models/blood_request_model.dart';
 import '../models/user_model.dart';
 import '../core/services/sms_service.dart';
+import '../core/constants/app_constants.dart';
 
 class RequestProvider extends ChangeNotifier {
   final FirestoreService _firestoreService = FirestoreService();
@@ -110,30 +111,44 @@ class RequestProvider extends ChangeNotifier {
         // No nearby donor found — fallback to topic broadcast
         await _notificationService.showNotification(
           title: urgency == 'SOS' ? '🆘 Request Broadcasted' : '🩸 Request Broadcasted',
-          body: 'No nearby donors found. Broadcasting to all $bloodGroup donors.',
+          body: 'No nearby donors found. Broadcasting to all compatible donors.',
           channelId: channelId,
         );
 
-        final safeGroup = bloodGroup.replaceAll('+', '_pos').replaceAll('-', '_neg');
-        await _notificationService.sendTopicNotification(
-          topic: 'blood_$safeGroup',
-          title: urgency == 'SOS'
-              ? '🆘 URGENT: $bloodGroup Needed at $hospitalName!'
-              : '🩸 Alert: $bloodGroup Requested at $hospitalName',
-          body: 'Urgency: $urgency • $units unit(s) required. Tap to respond immediately and save a life!',
-          urgency: urgency,
-        );
+        final compatibleDonorGroups = AppConstants.bloodCompatibility.entries
+            .where((entry) => entry.value.contains(bloodGroup))
+            .map((e) => e.key)
+            .toList();
+
+        for (final group in compatibleDonorGroups) {
+          final safeGroup = group.replaceAll('+', '_pos').replaceAll('-', '_neg');
+          await _notificationService.sendTopicNotification(
+            topic: 'blood_$safeGroup',
+            title: urgency == 'SOS'
+                ? '🆘 URGENT: $bloodGroup Needed at $hospitalName!'
+                : '🩸 Alert: $bloodGroup Requested at $hospitalName',
+            body: 'Urgency: $urgency • $units unit(s) required. Tap to respond immediately and save a life!',
+            urgency: urgency,
+          );
+        }
       }
 
       // For SOS: also broadcast to ALL + send SMS backup
       if (urgency == 'SOS') {
-        final safeGroup = bloodGroup.replaceAll('+', '_pos').replaceAll('-', '_neg');
-        await _notificationService.sendTopicNotification(
-          topic: 'blood_$safeGroup',
-          title: '🆘 URGENT: $bloodGroup Needed at $hospitalName!',
-          body: 'SOS Emergency • $units unit(s) required. Respond immediately!',
-          urgency: urgency,
-        );
+        final compatibleDonorGroups = AppConstants.bloodCompatibility.entries
+            .where((entry) => entry.value.contains(bloodGroup))
+            .map((e) => e.key)
+            .toList();
+
+        for (final group in compatibleDonorGroups) {
+          final safeGroup = group.replaceAll('+', '_pos').replaceAll('-', '_neg');
+          await _notificationService.sendTopicNotification(
+            topic: 'blood_$safeGroup',
+            title: '🆘 URGENT: $bloodGroup Needed at $hospitalName!',
+            body: 'SOS Emergency • $units unit(s) required. Respond immediately!',
+            urgency: urgency,
+          );
+        }
 
         await SmsService.sendSOSAlert(
           hospitalName: hospitalName,

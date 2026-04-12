@@ -11,6 +11,7 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/urgency_badge.dart';
 import '../../core/services/firestore_service.dart';
 import '../../core/utils/location_utils.dart';
+import '../../core/constants/app_constants.dart';
 import '../../models/blood_request_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/request_provider.dart';
@@ -552,7 +553,13 @@ class _DonorDashboardState extends State<DonorDashboard> {
           }
           // Show requests where donor is the AI target OR blood group matches
           if (r.currentTargetDonorId == user.id) return true;
-          if (r.bloodGroup != user.bloodGroup) return false;
+          
+          final compatibleDonorGroups = AppConstants.bloodCompatibility.entries
+              .where((entry) => entry.value.contains(r.bloodGroup))
+              .map((e) => e.key)
+              .toList();
+
+          if (!compatibleDonorGroups.contains(user.bloodGroup)) return false;
           return true;
         }).toList();
 
@@ -586,7 +593,7 @@ class _DonorDashboardState extends State<DonorDashboard> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'No ${user?.bloodGroup ?? ""} Requests Right Now',
+                      'No Compatible Requests Right Now',
                       style: const TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 18,
@@ -596,7 +603,7 @@ class _DonorDashboardState extends State<DonorDashboard> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'We will notify you immediately if a hospital requests your blood group.',
+                      'We will notify you immediately if a hospital requests your blood group or a compatible recipient group.',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 14,
